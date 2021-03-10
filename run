@@ -1,0 +1,22 @@
+initialized!
+connected to analog product 11
+
+
+
+
+
+            TIMESTAMP     lot  ...  chip_hard_bin  chip_failure_mode_bin
+0  2020-05-14 5:54:39  S38241  ...              1                      0
+1  2020-05-14 5:57:15  S38241  ...              1                      0
+
+[2 rows x 6 columns]
+
+
+
+
+
+            TIMESTAMP     lot  ...  chip_hard_bin  chip_failure_mode_bin
+0  2020-05-14 5:54:39  S38241  ...              1                      0
+1  2020-05-14 5:57:15  S38241  ...              1                      0
+
+[2 rows x 6 columns]

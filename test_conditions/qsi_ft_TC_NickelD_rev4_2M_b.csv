@@ -1,0 +1,37 @@
+condition,value
+dark_atten,1
+vref_target,500
+pga_gain_register,1
+temperature_setpt,32
+tint_seq,15
+tint_align,50
+min_align_signal,50
+illum_median_signal,100
+tint_mult,10
+tint_scan_frame_no,20
+MCLK points,113
+MCLK step,25
+MCLK start,0
+mclk_beg,1150
+mclk_end,2200
+knee,2200
+amp,100
+tau,100
+bgnd,0
+res,5
+vref_tile_min_signal_limit,100
+vref_tile_max_signal_limit,900
+vref_tile_min_noise_limit,5
+vref_tile_max_noise_limit,200
+dark_min_tint_tile_min_signal_limit,-10
+dark_min_tint_tile_max_signal_limit,40
+dark_seq_tint_tile_min_signal_limit,-10
+dark_seq_tint_tile_max_signal_limit,200
+dark_min_tint_tile_min_noise_limit,0.5
+dark_min_tint_tile_max_noise_limit,3
+dark_seq_tint_tile_min_noise_limit,0.5
+dark_seq_tint_tile_max_noise_limit,6
+VSUB_wait_sec,1
+VSUB_wait_volts,-3
+Voltage_measure_wait_sec,1
+MCLK_detune_start,600

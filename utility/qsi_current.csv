@@ -1,0 +1,26 @@
+,condition,value
+0,Lot,S50194
+1,Wafer,21
+2,Data_file,ENG_TEST1
+3,Chip_position,X1Y2
+4,Data_file_full_path,C:\Users\qsi\Desktop\Chip_data\2021_03\2021_03_05_open\ENG_TEST1.csv
+5,Data_summary_file_full_path,C:\Users\qsi\Desktop\Chip_data\2021_03\2021_03_05_open\ENG_TEST1_summary.csv
+6,Data_directory,C:\Users\qsi\Desktop\Chip_data\2021_03\2021_03_05_open\
+7,Date_stamp,2021-03-05 10:49:28
+8,Time_stamp,29119368.4484756
+9,Number_assembly_fails,0
+10,Image_stamp,2021-03-05-10-49-28
+11,Process_step,1
+12,Data_file_eng,ENG_TEST1
+13,Product_number,0
+14,File_mode,0
+15,aperture_file,BBEE3A5.csv
+16,Engineering_Mode,1
+17,Write_Efuse,0
+18,Force_Efuse_Write,0
+19,Efuse_Value,0
+20,MOTOR_X,2015
+21,MOTOR_Y,2824
+22,MOTOR_THETA_X,2600
+23,MOTOR_THETA_Y,3835
+24,filter,AF8807N
