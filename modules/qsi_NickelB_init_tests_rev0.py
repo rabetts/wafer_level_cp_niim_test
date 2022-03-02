@@ -18,6 +18,7 @@ sys.path.append(cfg.MODULE_FILE_PATH)
 import qsi_helpers as qsi
 import nickel_efuse_lib as nickel_efuse
 #import char_util as char
+import qsi_NickelB_illum_tests_rev0
 
 
 
@@ -82,8 +83,15 @@ class qsi_init_001():
 
         if len(t['failure_mode_bin'])>0: #is this test in the TRD file?
             if qsi.is_yes(t['test_performed'][0]): #the test is in the TRD file and is done
-                parameter_out = qsi.set_config(cfg.CURRENT_CONFIG_PATH)                
-                time.sleep(1)  #wait for the system voltages to stabilize 
+                parameter_out = qsi.set_config(cfg.CURRENT_CONFIG_PATH)
+                #todo: seriously.  fix this.  and check youri todos.  cleanup, read b0/b1 static from config and set on STS here, close loop
+                # for mclk sweep testing?  why seet static for mclk sweep?
+                # qsi_NickelB_illum_tests_rev0._flask_set_b0_static_request(2.5)
+                # qsi_NickelB_illum_tests_rev0._flask_set_b1_static_request(0.95)
+                # for FT testing
+                qsi_NickelB_illum_tests_rev0._flask_set_b0_static_request(0.0)
+                qsi_NickelB_illum_tests_rev0._flask_set_b1_static_request(2.3) # (3.0)
+                time.sleep(1)  #wait for the system voltages to stabilize
             else: #the test is in the TRD file but is not done so just add a line
                 parameter_out = -1 
         
@@ -141,7 +149,11 @@ class qsi_init_001():
         #############################################################################################################################################################   
 
         for i in range(10,44):  #power supply voltages
-        
+            # check out chewie before test result
+            # if i==10:
+            #     qsi.dis()
+            #     input('check chewie, any key to continue ')
+            #     qsi.con()
             fmb = str(i)
             t0 = time.time()
             t = trd[trd['failure_mode_bin']==fmb]
@@ -210,9 +222,13 @@ class qsi_init_001():
         do_long_time_VOD = False
         df = pd.read_csv(cfg.UTILITY_FILE_PATH + cfg.PHOTONICS_FILE, low_memory=False).astype('str')
         try:
-            photonics_data = df.loc[(df['lot'] == setting['Lot']) & (df['wafer'] ==str(int(setting['Wafer'])) )]
-            VOD = photonics_data.values.tolist()[0][photonics_data.columns.get_loc("VOD")]   
-            if VOD == 'yes':
+            if cfg.b_skip_photonics == True:
+                self.photonics_data = df.iloc[-1:]
+            else:
+                self.photonics_data = df.loc[(df['lot'] == self.Lot.get()) & (df['wafer'] == str(int(self.Wafer.get())))]            # photonics_data = df.loc[(df['lot'] == setting['Lot']) & (df['wafer'] ==str(int(setting['Wafer'])) )]
+            #VOD = self.photonics_data.values.tolist()[0][photonics_data.columns.get_loc("VOD")]
+            #VOD = self.photonics_data.VOD.values[0]
+            if (self.photonics_data.VOD == 'yes').any():
                 do_long_time_VOD = True
             else:
                 print('This wafer does not have VOD, not performing long wait VSUB current test')
@@ -322,8 +338,10 @@ class qsi_init_001():
                                         'die_num':xy_to_die_num(x,y), 'used_counter':0}
                     # read efuse
                     d_efuse_read = qsi.efuse_read_dict()
+                    print(f"existing efuse {d_efuse_write}")
                     if d_efuse_write != d_efuse_read:
                         qsi.efuse_write_dict(d_efuse_write) # (C api will take care of field mods)
+                        print(f"write new efuse {d_efuse_write}")
                     # readback and confirm
                     d_efuse_read = qsi.efuse_read_dict()
                     if  d_efuse_write == d_efuse_read:
@@ -543,19 +561,50 @@ class qsi_init_001():
 
 # setup wafermap to die_num mapping
 # given row num, lookup info on left most die (col num, die_num)
-d_left_die_nickel_d = {-6:(-1,1),
-              -5:(-2,5),
-              -4:(-3,11),
-              -3:(-3,19),
-              -2:(-4,28),
-              -1:(-4,38),
-               0:(-4,48),
-               1:(-4,58),
-               2:(-3,68),
-               3:(-3,77),
-               4:(-2,85),
-               5:(-1,91),
-              }
+if cfg.chip_type == 'NickelD':
+    d_left_die_nickel ={-6:(-1,1),
+                  -5:(-2,5),
+                  -4:(-3,11),
+                  -3:(-3,19),
+                  -2:(-4,28),
+                  -1:(-4,38),
+                   0:(-4,48),
+                   1:(-4,58),
+                   2:(-3,68),
+                   3:(-3,77),
+                   4:(-2,85),
+                   5:(-1,91),
+                          }
+elif cfg.chip_type == 'NickelG':
+    # d_left_die_nickel = {
+    #
+    d_left_die_nickel = {
+                  -6:(-1,1),
+                  -5:(-3,4),
+                  -4:(-4,11),
+                  -3:(-5,20),
+                  -2:(-5,31),
+                  -1:(-5,42),
+                   0:(-5,53),
+                   1:(-5,64),
+                   2:(-5,75),
+                   3:(-4,86),
+                   4:(-3,95),
+                   5:(-1,102),
+                  }
+    #               -6:(-1,1,1),
+    #               -5:(-3,3,4),
+    #               -4:(-4,4,11),
+    #               -3:(-5,5,20),
+    #               -2:(-5,5,31),
+    #               -1:(-5,5,42),
+    #                0:(-5,5,53),
+    #                1:(-5,5,64),
+    #                2:(-5,5,75),
+    #                3:(-4,4,86),
+    #                4:(-3,3,95),
+    #                5:(-1,1,102),
+    #               }
 def xy_to_die_num(x,y):
-    ldie_col, ldie_num = d_left_die_nickel_d[y]
+    ldie_col, ldie_num = d_left_die_nickel[y]
     return ldie_num+(x-ldie_col)

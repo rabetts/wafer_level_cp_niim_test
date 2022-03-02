@@ -32,7 +32,7 @@ class qsi_dark_001():
 	   
 	def run(self,test_data,test_conditions,continue_test, hard_bin, failure_mode_bin,retest_device):
 		
-		
+		b_good_image = True # todo: cleanup.  hack to deal with qsi.capture fail
 		#load up current lot/wfr/part/data_file settings
 		try:
 			dd = pd.read_csv(cfg.UTILITY_FILE_PATH + "qsi_current.csv")
@@ -66,7 +66,7 @@ class qsi_dark_001():
 		##########################################################
 		#take some dark images in PP mode at the minimum tint
 		##########################################################
-		qsi.set_blk_row(0)
+		qsi.set_blk_row(5)
 		tint_min = qsi.get_tint()
 		
 		fmb = '420'
@@ -109,6 +109,12 @@ class qsi_dark_001():
 				if qsi.is_yes(t['test_performed'][0]): #the test is in the TRD file and is done
 					#try:
 					if 1:
+						b_check_chewie = False
+						if b_check_chewie:
+							qsi.dis()
+							input('disconnect from NIM, press any key to reconnect and continue')
+							qsi.con()
+							time.sleep(1)
 						frame = qsi.capture(2,'cds')
 						frame = np.broadcast_to(frame,(frame.shape[0],2,frame.shape[2],frame.shape[3]))
 						if qsi.is_yes(t['save_image'][0]): #do we want to save image(s)?
@@ -574,10 +580,169 @@ class qsi_dark_001():
 				if qsi.is_yes(t['retest_on_fail']):
 						retest_device = True
 				return test_data, continue_test, hard_bin, failure_mode_bin,retest_device #testng is over for this chip 
-	
-		
-		
-		
+
+			##########################################################
+			# dark PP mode blinking pixel test
+			##########################################################
+			qsi.set_blk_row(test_conditions['tint_min_row'])
+			tint_min = qsi.get_tint()
+
+			########################################
+			# go to PP mode
+			########################################
+			qsi.set_PP_mode()
+
+			fmb = '490'
+			t0 = time.time()
+			t = trd[trd['failure_mode_bin'] == fmb]
+			t = t.reset_index().to_dict()
+			try:
+				dark_blinking_done = qsi.is_yes(t['test_performed'][0])
+			except:
+				dark_blinking_done = False
+
+			# if dark_blinking_done is false then skip all tests
+			if dark_blinking_done:
+
+				frame = qsi.capture(int(test_conditions['dark_blinking_frame_no']), 'cds')
+				# calculate noise of each pixel
+				blink_noise_bin0 = np.std(frame[:, 0, :, :], axis=0).flatten()
+				# hack.  nickel D giving smaller frame than Nickel G
+				if cfg.chip_type=='NickelD':
+					blink_noise_bin1 = np.std(frame[:, 0, :, :], axis=0).flatten()
+				else:
+					blink_noise_bin1 = np.std(frame[:, 1, :, :], axis=0).flatten()
+
+
+				blink_noise_tot_num = blink_noise_bin0.shape[0]
+
+				blink_noise_median_bin0 = np.median(blink_noise_bin0)
+				blink_noise_median_bin1 = np.median(blink_noise_bin1)
+				blink_noise_IQR_bin0 = np.percentile(blink_noise_bin0, 75) - np.percentile(blink_noise_bin0, 25)
+				blink_noise_IQR_bin1 = np.percentile(blink_noise_bin1, 75) - np.percentile(blink_noise_bin1, 25)
+
+				# calculate # pixels with noise > 3*IQR + median
+
+				blink_noise_percent_thr_35_bin0 = float(
+					(blink_noise_bin0 > 3.5).sum()) / blink_noise_tot_num * 100.0
+				blink_noise_percent_thr_35_bin1 = float(
+					(blink_noise_bin1 > 3.5).sum()) / blink_noise_tot_num * 100.0
+				blink_noise_percent_thr_50_bin0 = float(
+					(blink_noise_bin0 > 5.0).sum()) / blink_noise_tot_num * 100.0
+				blink_noise_percent_thr_50_bin1 = float(
+					(blink_noise_bin1 > 5.0).sum()) / blink_noise_tot_num * 100.0
+
+				print('number of bin1 pixels with >3.5DN dark temporal noise = ' + str(
+					int(blink_noise_percent_thr_35_bin1 * blink_noise_tot_num / 100.0)))
+				print('number of bin1 pixels with >5.0DN dark temporal noise = ' + str(
+					int(blink_noise_percent_thr_50_bin1 * blink_noise_tot_num / 100.0)))
+				print('number of bin0 pixels with >3.5DN dark temporal noise = ' + str(
+					int(blink_noise_percent_thr_35_bin0 * blink_noise_tot_num / 100.0)))
+				print('number of bin0 pixels with >5.0DN dark temporal noise = ' + str(
+					int(blink_noise_percent_thr_50_bin0 * blink_noise_tot_num / 100.0)))
+				if qsi.is_yes(t['save_image'][0]):  # do we want to save image(s)?
+					test_str = setting['Image_stamp']
+					props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
+					# bin0 noise distribution
+					di = pd.DataFrame(blink_noise_bin0)
+					di.columns = ['noise']
+					hist = di.hist(figsize=(12, 8), bins=500)
+					p = plt.gca()
+					title_text = 'Blinking Pixel Noise Dist. bin0, median = ' + str(
+						round(blink_noise_median_bin0, 2)) + ', IQR = ' + str(round(blink_noise_IQR_bin0, 2))
+					file_name = setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
+						setting['Wafer']) + '_P' + str(
+						setting['Chip_position']) + '_blinking_pixel_dist_' + test_str + '_bin0.png'
+					textstr = '>3.5DN percent=%.3f\n>5.0DN percent=%.3f\ntot_num=%.0f' % (
+					blink_noise_percent_thr_35_bin0, blink_noise_percent_thr_50_bin0, blink_noise_tot_num)
+					p.set_title(title_text, fontsize=12)
+					p.set_xlabel('Temporal Noise (DN)')
+					p.set_ylabel('# pixels')
+					p.text(0.8, .9, textstr, transform=p.transAxes, fontsize=9, verticalalignment='top', bbox=props)
+					plt.grid('on', 'major', 'y')
+					p.set_yscale('log')
+					plt.tight_layout()
+
+					plt.savefig	(file_name)
+					plt.close
+
+					# # bin1 noise distribution
+					# di = pd.DataFrame(blink_noise_bin1)
+					# di.columns =['noise']
+					# hist = di.hist(figsize=(12 ,8) ,bins=500)
+					# p = plt.gca()
+					# title_text = 'Blinking Pixel Noise Dist. bin1, median =  ' +str \
+					# 	(round(blink_noise_median_bin1 ,2) ) +', IQR =  ' +str(round(blink_noise_IQR_bin1 ,2))
+					# file_name = setting['Data_directory' ] +'images\\ ' +setting['Lot' ] +'_W ' +str \
+					# 	(setting['Wafer'] ) +'_P ' +str \
+					# 	(setting['Chip_position'] ) +'_blinking_pixel_dist_ ' +test_str +'_bin1.png'
+					# textstr ='>10DN percent=%.3f\n>20DN percent=%.3f\ntot_num=%.0f' % (
+					# blink_noise_percent_thr_10_bin1, blink_noise_percent_thr_20_bin1, blink_noise_tot_num)
+					# p.set_title(title_text, fontsize=12)
+					# p.set_xlabel('Temporal Noise (DN)')
+					# p.set_ylabel('# pixels')
+					# p.text(0.8, .9, textstr, transform=p.transAxes, fontsize=9, verticalalignment='top', bbox=props)
+					# plt.grid('on', 'major', 'y')
+					# p.set_yscale('log')
+					# plt.tight_layout()
+					#
+					# plt.savefig	(file_name)
+					# plt.close
+				blinking_parameters = [blink_noise_median_bin0 ,blink_noise_median_bin1 ,blink_noise_IQR_bin0
+									   ,blink_noise_IQR_bin1 ,blink_noise_percent_thr_35_bin0
+									   ,blink_noise_percent_thr_35_bin1,
+									   blink_noise_percent_thr_50_bin0 ,blink_noise_percent_thr_50_bin1
+									   ,blink_noise_tot_num]
+				# must save 9 parameters currently.  should fix
+				# blinking_parameters = [blink_noise_median_bin0 ,blink_noise_IQR_bin0,
+				# 						blink_noise_percent_thr_10_bin0,
+				# 					    blink_noise_percent_thr_20_bin0,blink_noise_tot_num]
+				parameter_out = True
+
+			else:  # the blinking pixel test is in the TRD file but is not done so just add a line
+				parameter_out = -1
+
+			# assess the test results based on TRD file limits etc.
+			t1 = time.time()
+			test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data ,t ,setting ,fmb
+																				   ,parameter_out ,hard_bin
+																				   ,failure_mode_bin ,continue_test
+																				   ,t1-t0)
+			if not continue_test:
+				if qsi.is_yes(t['retest_on_fail']):
+					retest_device = True
+				return test_data, continue_test, hard_bin, failure_mode_bin ,retest_device  # testng is over for this chip
+
+			# save dark blinking parameters
+			if dark_blinking_done:
+				for i in range(9):
+					fmb = str( i +491)
+					t0 = time.time()
+					t = trd[trd['failure_mode_bin' ]==fmb]
+					t = t.reset_index().to_dict()
+					if len(t['failure_mode_bin'] ) >0:  # is this test in the TRD file?
+						if qsi.is_yes(t['test_performed'][0]):  # the test is in the TRD file and is done
+							try:
+								parameter_out = blinking_parameters[i]
+							except:
+								parameter_out = -10.0
+
+					else:  # the test is in the TRD file but is not done so just add a line
+						parameter_out = -1
+
+					# assess the test results based on TRD file limits etc.
+					t1 = time.time()
+					test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data ,t ,setting
+																						   ,fmb ,parameter_out
+																						   ,hard_bin
+																						   ,failure_mode_bin
+																						   ,continue_test ,t1-t0)
+					if not continue_test:
+						if qsi.is_yes(t['retest_on_fail']):
+							retest_device = True
+						return test_data, continue_test, hard_bin, failure_mode_bin ,retest_device  # testng is over for this chip
+
+
 		
 		########################################
 		#go to PP mode for detailed dark noise dark current assessment of both bins
@@ -588,7 +753,7 @@ class qsi_dark_001():
 		########################################
 		#figure out blanking rows
 		########################################
-		qsi.set_blk_row(0)
+		qsi.set_blk_row(5)
 		tint_min = qsi.get_tint()
 
 
@@ -651,39 +816,49 @@ class qsi_dark_001():
 			signal_level_50th_bin1 = []
 			if len(t['failure_mode_bin'])>0: #is this test in the TRD file?
 				if qsi.is_yes(t['test_performed'][0]): #the test is in the TRD file and is done
-					try:
-					#if 1:
-						tt=0
-						for tint in tints:	#scan integration times
-							qsi.set_tint(tint)
+				#if 1:
+					tt=0
+					for tint in tints:	#scan integration times
+						qsi.set_tint(tint)
+						b_check_chewie = False
+						if b_check_chewie:
+							qsi.dis()
+							input('disconnect from NIM, press any key to reconnect and continue')
+							qsi.con()
+							time.sleep(1)
+						try:
 							frame = qsi.capture(int(test_conditions['tint_scan_frame_no']),'cds')
-							frame = np.broadcast_to(frame, (frame.shape[0], 2, frame.shape[2], frame.shape[3]))
-							signal_level_50th_bin0 = signal_level_50th_bin0 + [np.median(frame[5,0,:,:].flatten())]	 #just take median of 5th frame
-							signal_level_50th_bin1 = signal_level_50th_bin1 + [np.median(frame[5,1,:,:].flatten())]	 #just take median of 5th frame
-							std0 = np.std(frame[:,0,:,:],axis=0).flatten()
-							std1 = np.std(frame[:,1,:,:],axis=0).flatten()
-							temporal_noise_50th_bin0 = temporal_noise_50th_bin0 + [np.median(std0)]
-							temporal_noise_50th_bin1 = temporal_noise_50th_bin1 + [np.median(std1)]
-							temporal_noise_95th_bin0 = temporal_noise_95th_bin0 + [np.percentile(std0,95)]
-							temporal_noise_95th_bin1 = temporal_noise_95th_bin1 + [np.percentile(std1,95)]
-							if tt==0:
-								frame_first = frame	 #for difference image later on
-			   
-								
-							tt=tt+1
-						frame_last = frame #for difference image later on
-						
-						parameter_out = True
-					except:
-						parameter_out = False
-						
+						except:
+							b_good_image = False
+							parameter_out = False
+							break  # todo:  jump out of loop, go to end test fore this chip (does this work?)
+						frame = np.broadcast_to(frame, (frame.shape[0], 2, frame.shape[2], frame.shape[3]))
+						# signal_level_50th_bin0 = signal_level_50th_bin0 + [np.median(frame[5,0,:,:].flatten())]	 #just take median of 5th frame
+						# signal_level_50th_bin1 = signal_level_50th_bin1 + [np.median(frame[5,1,:,:].flatten())]	 #just take median of 5th frame
+						signal_level_50th_bin0 = signal_level_50th_bin0 + [np.mean(frame[5,0,:,:].flatten())]	 #just take median of 5th frame
+						signal_level_50th_bin1 = signal_level_50th_bin1 + [np.mean(frame[5,1,:,:].flatten())]	 #just take median of 5th frame
+						std0 = np.std(frame[:,0,:,:],axis=0).flatten()
+						std1 = np.std(frame[:,1,:,:],axis=0).flatten()
+						temporal_noise_50th_bin0 = temporal_noise_50th_bin0 + [np.median(std0)]
+						temporal_noise_50th_bin1 = temporal_noise_50th_bin1 + [np.median(std1)]
+						temporal_noise_95th_bin0 = temporal_noise_95th_bin0 + [np.percentile(std0,95)]
+						temporal_noise_95th_bin1 = temporal_noise_95th_bin1 + [np.percentile(std1,95)]
+						if tt==0:
+							frame_first = frame	 #for difference image later on
+
+
+						tt=tt+1
+					frame_last = frame #for difference image later on
+
+					parameter_out = True
+
 			else: #the test is in the TRD file but is not done so just add a line
 				parameter_out = -1
 			
 			#assess the test results based on TRD file limits etc.
 			t1 = time.time()
 			test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data,t,setting,fmb,parameter_out,hard_bin,failure_mode_bin,continue_test,t1-t0)			
-			if not continue_test:
+			if (not continue_test) or (not b_good_image):
 				if qsi.is_yes(t['retest_on_fail']):
 						retest_device = True
 				return test_data, continue_test, hard_bin, failure_mode_bin,retest_device #testng is over for this chip 
@@ -766,38 +941,70 @@ class qsi_dark_001():
 			############################################################################################################################################################	
 			#############################################################################################################################################################		   
 			#############################################################################################################################################################	
-			#save bin0/bin1 images of max-min tint
+			# save bin0/bin1 images of max-min tint
 			for i in range(2):
 
-				fmb = str(i+582)
+				fmb = str(i + 582)
 				t0 = time.time()
-				t = trd[trd['failure_mode_bin']==fmb]
+				t = trd[trd['failure_mode_bin'] == fmb]
 				t = t.reset_index().to_dict()
 
-				if len(t['failure_mode_bin'])>0: #is this test in the TRD file?
-					if qsi.is_yes(t['test_performed'][0]): #the test is in the TRD file and is done
-						if qsi.is_yes(t['save_image'][0]): #do we want to save image(s)?
+				if len(t['failure_mode_bin']) > 0:  # is this test in the TRD file?
+					if qsi.is_yes(t['test_performed'][0]):  # the test is in the TRD file and is done
+						if qsi.is_yes(t['save_image'][0]):  # do we want to save image(s)?
 							test_str = setting['Image_stamp']
 							fr = frame_last - frame_first
-							fr = np.median(fr[:,:,:,:],axis=0)
-							Image.fromarray(4*fr[i,:,:]).save(setting['Data_directory']+'images\\'+setting['Lot']+'_W'+str(setting['Wafer'])+'_P'+str(setting['Chip_position'])+'_dark_diff_'+test_str+'_bin'+str(i)+'.tif') 
+							fr = np.median(fr[:, :, :, :], axis=0)
+							Image.fromarray(4 * fr[i, :, :]).save(
+								setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
+									setting['Wafer']) + '_P' + str(
+									setting['Chip_position']) + '_dark_diff_' + test_str + '_bin' + str(i) + '.tif')
 						parameter_out = True
-							
-				else: #the test is in the TRD file but is not done so just add a line
+
+				else:  # the test is in the TRD file but is not done so just add a line
 					parameter_out = False
-				
-				#assess the test results based on TRD file limits etc.
+
+				# assess the test results based on TRD file limits etc.
 				t1 = time.time()
-				test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data,t,setting,fmb,parameter_out,hard_bin,failure_mode_bin,continue_test,t1-t0)			
+				test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data, t, setting, fmb,
+																					   parameter_out, hard_bin,
+																					   failure_mode_bin, continue_test,
+																					   t1 - t0)
 				if not continue_test:
 					if qsi.is_yes(t['retest_on_fail']):
 						retest_device = True
-					return test_data, continue_test, hard_bin, failure_mode_bin,retest_device #testng is over for this chip 
-						 
-			
-			
-			
-			############################################################################################################################################################	
+					return test_data, continue_test, hard_bin, failure_mode_bin, retest_device  # testng is over for this chip
+
+			# find dark signal white pixel count
+			fmb = '584'
+			t0 = time.time()
+			t = trd[trd['failure_mode_bin'] == fmb]
+			t = t.reset_index().to_dict()
+
+			if len(t['failure_mode_bin']) > 0:  # is this test in the TRD file?
+				if qsi.is_yes(t['test_performed'][0]):  # the test is in the TRD file and is done
+					try:
+						dfr = fr[0,:,:]
+						n_wp_75 = (dfr[np.abs(dfr-dfr.mean())>test_conditions['white_pix_thr']].size)/dfr.size
+						parameter_out = n_wp_75
+					except:
+						parameter_out = 0
+
+			else:  # the test is in the TRD file but is not done so just add a line
+				parameter_out = False
+
+			# assess the test results based on TRD file limits etc.
+			t1 = time.time()
+			test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data, t, setting, fmb,
+																				   parameter_out, hard_bin,
+																				   failure_mode_bin, continue_test,
+																				   t1 - t0)
+			if not continue_test:
+				if qsi.is_yes(t['retest_on_fail']):
+					retest_device = True
+				return test_data, continue_test, hard_bin, failure_mode_bin, retest_device  # testng is over for this chip
+
+			############################################################################################################################################################
 			#############################################################################################################################################################		   
 			#############################################################################################################################################################	
 			#find bin0/bin1 read noise in DN, also calculate CGC for each bin

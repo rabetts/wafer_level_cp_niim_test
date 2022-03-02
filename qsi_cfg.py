@@ -19,33 +19,49 @@ MODULE_FILES = ['qsi_NickelB_init_tests_rev0.py','qsi_NickelB_vref_tests_rev0.py
 PROCESS_STEPS = ['Pre_Surface_Chem','Post_Surface_Chem','Other']
 
 # change base_coonfiguration_file also
-PRODUCTS = ['q9001_prober_20x2048_b0_2.5V_b1_1.25V_50dc_static_rejecting_near_solo2.json',
-			'q9001_prober_2048x1024_cont_65M_8M.json',
-			'q9001_prober_20x2048_b0_2p5_b1_1p5V_50dc.json',
-			'q9001_prober_2048x1024_cont_65M_8M.json',]
-BASE_CONFIGURATION_FILES = ['q9001_prober_20x2048_b0_2.5V_b1_1.25V_50dc_static_rejecting_near_solo2.json',
-							'q9001_prober_2048x1024_cont_65M_8M.json',
-							'q9001_prober_20x2048_b0_2p5_b1_1p5V_50dc.json',
-							'q9001_prober_2048x1024_cont_65M_8M.json']
+chip_type = 'NickelD'
+#chip_type = 'NickelG'
+b_skip_photonics = True
+if chip_type == 'NickelD':
+	PRODUCTS = [				'q9001_prober_2048x1024_cont_65M_8M_20220218_near_solo.json',
+				]
 
-TRD_FILES = [
-			'qsi_ft_TRD_NickelB_rev4_cp.csv',
-]
+	BASE_CONFIGURATION_FILES = ['q9001_prober_2048x1024_cont_65M_8M_20220218_near_solo.json',
+								]
 
-b_half_wafer = True
+	TRD_FILES = [
+				'qsi_ft_TRD_NickelB_rev12_cp.csv',
+				'qsi_ft_TRD_NickelB_rev10_cp.csv',
+				'qsi_ft_TRD_NickelB_rev8_cp.csv',
+				'qsi_ft_TRD_NickelB_rev7_cp.csv',
+				'qsi_ft_TRD_NickelB_rev6_cp.csv',
+				'qsi_ft_TRD_NickelB_rev6_va33_vd18_shorts_cp.csv',
 
-TC_FILES = [
-						'qsi_ft_TC_NickelB_rev4_a.csv',
-						'qsi_ft_TC_NickelB_rev4_b.csv',
-						'qsi_ft_TC_NickelB_rev4_Todd_a.csv',
-						'qsi_ft_TC_NickelB_rev4_Todd_b.csv',
-						'qsi_ft_TC_NickelB_rev4_2M_b.csv',
-						'qsi_ft_TC_NickelB_rev4_osc_b.csv',
-						'qsi_ft_TC_NickelD_rev4_2M_b.csv',
-						'qsi_ft_TC_NickelE_rev4_2M_b.csv',
-						'qsi_ft_TC_NickelB_rev4_e.csv',
-						'qsi_ft_TC_NickelB_rev4_b.csv',
-						'qsi_ft_TC_NickelB_rev4_2M_Tom_b.csv']
+	]
+	TC_FILES = [
+						'qsi_ft_TC_NickelB_rev4_f.csv',
+				]
+elif chip_type=='NickelG':
+	OFF_CHIP_CDS_CONFIG_PATH = 'NickelG_dCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_4sp_chip_phase_1200_CP_2021-12-10_b.json'
+	PRODUCTS = [		'NickelG_aCDS_2021_11_30.json',
+						'NickelG_aCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_1p3x_61p49fps_cds_2021-12-10_b.json',
+				]
+
+	BASE_CONFIGURATION_FILES = \
+		['NickelG_aCDS_2022-01-28_for_rel108.json',
+		 'NickelG_aCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_1p3x_61p49fps_cds_2021-12-10_b.json',
+		]
+
+	TRD_FILES = [
+				'qsi_ft_TRD_NickelG_rev03_cp.csv',
+				]
+	TC_FILES = [
+						'qsi_ft_TC_NickelG_rev1.csv',
+				]
+# end of chip type dependent variables
+
+b_half_wafer = False
+
 
 
 vref_ROIS = [
@@ -83,12 +99,18 @@ illum_ROIS = [
 #The items below can be used with all qsi_ft_TESTS files
 
 #saved image types
-IMAGE_TYPES = ["reset,bin0","reset,bin1","dark_min_tint,bin0","dark_min_tint,bin1","dark_seq_tint,bin0","dark_seq_tint,bin1",
-				"dark_current,bin0","dark_current,bin1","dark_noise,bin0","dark_noise,bin1",
-				"dark_diff,bin0","dark_diff,bin1","dark_min_tint_noise,bin0","dark_min_tint_noise,bin1",
-				"dark_max_tint_noise,bin0","dark_max_tint_noise,bin1",
-				"illum,bin0","illum,bin1","MCLK,scan","MCLK,chiplet0","MCLK,chiplet1","MCLK,chiplet2","MCLK,chiplet3"]
-				
+IMAGE_TYPES = ["reset,bin0","dark_min_tint,bin0", "dark_seq_tint,bin0",
+			   "dark_current,bin0", "dark_noise,bin0",
+			   "dark_diff,bin0", "dark_min_tint_noise,bin0",
+			   "dark_max_tint_noise,bin0",]
+# IMAGE_TYPES = ["reset,bin0", "reset,bin1", "dark_min_tint,bin0", "dark_min_tint,bin1", "dark_seq_tint,bin0",
+# 			   "dark_seq_tint,bin1",
+# 			   "dark_current,bin0", "dark_current,bin1", "dark_noise,bin0", "dark_noise,bin1",
+# 			   "dark_diff,bin0", "dark_diff,bin1", "dark_min_tint_noise,bin0", "dark_min_tint_noise,bin1",
+# 			   "dark_max_tint_noise,bin0", "dark_max_tint_noise,bin1",
+# 			   "illum,bin0", "illum,bin1", "MCLK,scan", "MCLK,chiplet0", "MCLK,chiplet1", "MCLK,chiplet2",
+# 			   "MCLK,chiplet3"]
+
 #parameters that can be viewed with FT program
 SELECTED_PARAMETERS = ["beam_steer_THETA_Y","illum_median_laser_power_x_tint_x_rej","MCLK_rej_0p25nsec_bin1"]
 
@@ -129,6 +151,7 @@ if PRODUCTION_TESTER == 'open':
 	INCLUDE_PATH =  'C:\\Users\\qsi\\Dropbox (Quantum-SI)\\Q-Si Software\\Falcon 64\chewie\\Beta\\'	#location API files
 	DEFAULT_REG_FILE_PATH = "C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\utility\\spi_reg_map.csv"
 	CURRENT_CONFIG_PATH = "C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\utility\\current_config.json"	#this is a temp config file that is modified during tests
+	CURRENT_CONFIG_PATH_OFF_CHIP_CDS = "C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\utility\\current_config_off_chip_cds.json"	#this is a temp config file that is modified during tests
 	FULL_FRAME_CONFIG_PATH = "C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\configurations\\q9001_prober_2048x1024_cont_65M_8M.json"	#this is a temp config file that is modified during tests
 	BIN_IMAGE_PATH = "C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\bin_images\\"  #directory where images for bin of chip are saved.
 

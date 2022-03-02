@@ -30,6 +30,8 @@ from scipy import special
 import nickel_efuse_lib as nickel_efuse
 
 # will be updated on connect
+import qsi_helpers
+
 isDigital = None
 product_type = None
 
@@ -46,15 +48,16 @@ platform_name = platform.system()
 if platform_name == "Windows":
 	default_reg_file = cfg.DEFAULT_REG_FILE_PATH
 
-
+MAX_AUTO_EXP_CYCLES = 60
 INCLUDE_PATH = cfg.INCLUDE_PATH
 default_reg_file = cfg.DEFAULT_REG_FILE_PATH
- 
+MIN_BLANK_ROWS = 5  # based on where vpulse occurs in blanking period... see dan f.
 nickel_handle = None
 echo = None
 capture_array = None
 default_regs = []
 default_bits = []
+vref_prior = -99
 
 HEADERS = ['alarm_event.h', 'qsi_umap_impl.h', 'qsi_tlv_defs.h', 'QSI_API.h']
 
@@ -191,7 +194,8 @@ def init():
 	lib.quantum_initialize_dll(ffi.NULL)
 
 	# connect to the device
-	rc = lib.quantum_connect_device(0)
+	rc = con()
+	#rc = lib.quantum_connect_device()
 	if rc != lib.LIBQSI_STATUS_SUCCESS:
 		print('failed to connect to device, error %s' % rc)
 		print('not initialized!')
@@ -371,7 +375,7 @@ def wait_locked():
 		#sys.exit()
 
 	
-# define a convenience function that creates a numyp array from a series of frames captured
+# define a convenience function that creates a numpy array from a series of frames captured
 def capture(num_frames, mode='cds', max_retries=3):
 	# capture our requested frames into RAM
 	retry = 0
@@ -915,7 +919,10 @@ def set_CROP_RAW():
 
 def set_mclk_offset(n):
 	n = int(n)
-	set_clk_offsets('MCLK', 0x6, [0,n,n,0])
+	# chnage mclk1+ mclk2 (recovered from laser)
+	#set_clk_offsets('MCLK', 0x6, [0,n,n,0])
+	# change laser trigger 2
+	set_clk_offsets('MCLK', 0x8, [0,0,0,n])
 	# set_clk_offsets('MCLK', 0x1, [n,0,0,0])  # altnernate mclk sweep.  use negative offsets here (match chewie)
 
 def set_clk_offsets(name, bits, clock_phase_step_array):
@@ -1233,16 +1240,22 @@ def get_one_frm(ROI, Ntb, mode = 'cds'):
 	return ROI_Ntb(get_one_full_frm)(ROI, Ntb, mode)
 	
 def set_rst_level(ROI, Ntb, target,adcBit):
+	global vref_prior
 	if target <= 0:	 # If target is negative or 0, do nothing.
 		print('VREFSH = ' + str(get_Vrefsh()) + ', RST_LEVEL = ' + str(np.mean(get_one_frm(ROI, Ntb, 'rx'))))
 		return
-	vref = get_Vrefsh()
+	# use previous die vref_prior, but use config default for 1st die
+	if vref_prior == -99:
+		vref = get_Vrefsh()
+	else:
+		vref = vref_prior
+		if set_Vrefsh(vref) == False:
+			return False
+
 	print('Original vref_ctrl = '+str(vref))
- 
 
 	set_CROP_RAW()
-	
-	
+
 	rst_fr = get_one_frm(ROI, Ntb, 'crop')
 	#rst_fr = rst_fr[:, :, :, 0:(rst_fr.shape[-1] / 16 * 15)]
 
@@ -1266,16 +1279,17 @@ def set_rst_level(ROI, Ntb, target,adcBit):
 	if np.mean(rst_cands[0]) < target:
 		j = 0
 		#while np.min(rst_cands[0:2]) < target and j<5:
-		while np.min(rst_cands[0]) < target and j < 30:
+		while np.min(rst_cands[0]) < target and j < MAX_AUTO_EXP_CYCLES:
 
 			rst_cands[2] = rst_cands[0] #storing previous iteration values
 			rst_cands[3] = rst_cands[1] #storing previous iteration values
 		   
 			vref += 1
-			print('New vref_ctrl = '+str(vref))
+			print('New vref_ctrl = '+str(vref), 'vref_range = '+str(qsi_helpers.get_vref_range()))
 			if set_Vrefsh(vref) == False:
 				return False
-			set_CROP_RAW()
+			if cfg.chip_type!='NickelG':
+				set_CROP_RAW()
 			rst_fr = get_one_frm(ROI, Ntb, 'crop')
 			if Ntb>1:
 				rst_prev0 = rst_cands[0]
@@ -1293,17 +1307,17 @@ def set_rst_level(ROI, Ntb, target,adcBit):
 		vref_last = vref - 1
 	else:
 		j = 0
-		#while np.min(rst_cands[0:2]) >= target and j<5:
-		#while np.mean(rst_cands[0:2]) >= target and j < 5:
-		while np.mean(rst_cands[0]) >= target and j < 15:
+		while np.mean(rst_cands[0]) >= target and j < MAX_AUTO_EXP_CYCLES:
 			rst_cands[2] = rst_cands[0] #storing previous iteration values
 			#rst_cands[3] = rst_cands[1] #storing previous iteration values
 			
 			vref -= 1
-			print('New vref_ctrl = '+str(vref))
+			print('New vref_ctrl = '+str(vref), 'vref_range = '+str(qsi_helpers.get_vref_range()))
+
 			if set_Vrefsh(vref) == False:
 				return False
-			set_CROP_RAW()
+			if cfg.chip_type!='NickelG':
+				set_CROP_RAW()
 			rst_fr = get_one_frm(ROI, Ntb, 'crop')
 			#rst_fr = rst_fr[:,:,0:(rst_fr.shape[-1]/16*15)]
 
@@ -1329,6 +1343,7 @@ def set_rst_level(ROI, Ntb, target,adcBit):
 			print('final vref_ctrl = ' + str(vref) + ', RST_LEVEL_bin0 = ' + str(round(rst_cands[0],1)) + ' RST_LEVEL_bin1 = ' + str(round(rst_cands[1],1)))
 		else:
 			print('final vref_ctrl = ' + str(vref) + ', RST_LEVEL_bin0 = ' + str(round(rst_cands[0],1)) )
+		vref_prior = vref
 	else:
 		if set_Vrefsh(vref) == False:
 				return False
@@ -1336,43 +1351,62 @@ def set_rst_level(ROI, Ntb, target,adcBit):
 			print('final vref_ctrl = ' + str(vref_last) + ', RST_LEVEL_bin0 = ' + str(round(rst_cands[2],1)) + ' RST_LEVEL_bin1 = ' + str(round(rst_cands[3],1)))
 		else:
 			print('final vref_ctrl = ' + str(vref_last) + ', RST_LEVEL_bin0 = ' + str(round(rst_cands[2],1)) )
-
-	set_CDS_SINGLE_BIN()
+		vref_prior = vref_last
+	if cfg.chip_type != 'NickelG':
+		set_CDS_SINGLE_BIN()
 	#return get_Vrefsh()
 	return True
 		
 def get_Vrefsh():	
 	result = spi_get('c0.afe_ctrl_5.vref_ctrl')
 	if get_vref_range() == 0:
-		result -= 29
+		result -= 17 #29
 	return result
 	
 def set_Vrefsh(integer):
-	if get_vref_range() == 1 or get_vref_range() == 2:
-		print('vref_range not supported.')
-		return False
+	# if get_vref_range() == 1 or get_vref_range() == 2:
+	# 	print('vref_range not supported.')
+	# 	return False
 		#raise Exception('vref_range not supported.')
 	if integer < -29 or integer > 31:
-		print('vref_ctrl must be -29 ~ 31.')
+		print('vref_ctrl must be in range of [-29,31].')
 		return False
 		#raise Exception('vref_ctrl must be -29 ~ 31.')
 	#print('Vref_ctrl is set to ' + str(integer))
 	if integer < 0:
 		if get_vref_range() == 3:
-			set_vref_range(0)
-			#print('Vref_range set to 0')
-		integer += 29
-	else:
-		if get_vref_range() == 0:
-			set_vref_range(3)	 
+			if cfg.chip_type!='NickelG':
+				set_vref_range(1)
+				print('Vref_range set to 1')
+			integer += 10
+		elif get_vref_range() in [1,2]:
+			if cfg.chip_type!='NickelG':
+				set_vref_range(0)
+				print('Vref_range set to 0')
+			integer += 10
+	elif integer > 27:
+		if get_vref_range() < 3:
+			if cfg.chip_type!='NickelG':
+				print('Set vref_range to 3)')
+				set_vref_range(3)
+			integer -= 15
 
-	config_temp = read_config(cfg.CURRENT_CONFIG_PATH )
+	if cfg.chip_type=='NickelG':
+		config_temp = read_config(cfg.CONFIGURATION_FILE_PATH + cfg.OFF_CHIP_CDS_CONFIG_PATH)
+	else:
+		config_temp = read_config(cfg.CURRENT_CONFIG_PATH )
+
 	config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["0"]["vref_ctrl"]= int(integer)
 	config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["1"]["vref_ctrl"]= int(integer)
 	config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["2"]["vref_ctrl"]= int(integer)
 	config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["3"]["vref_ctrl"]= int(integer)
-	write_config(cfg.CURRENT_CONFIG_PATH , config_temp)
-	set_config(cfg.CURRENT_CONFIG_PATH )
+	if cfg.chip_type=='NickelG':
+		write_config(cfg.CURRENT_CONFIG_PATH_OFF_CHIP_CDS , config_temp)
+		set_config(cfg.CURRENT_CONFIG_PATH_OFF_CHIP_CDS)
+	else:
+		write_config(cfg.CURRENT_CONFIG_PATH , config_temp)
+		set_config(cfg.CURRENT_CONFIG_PATH )
+
 	return True
 	
 def get_vref_range():
@@ -1531,7 +1565,8 @@ def get_sensor_chip_information():
 
 
 def get_chip_temperatures():
-	target_database = lib.LIBQSI_TLVDB_CM 
+	temperature1 = temperature2 = -20.0
+	target_database = lib.LIBQSI_TLVDB_CM
 	tlv_number1 = lib.TLV_STAT_SENSOR_TEMP1
 	tlv_number2 = lib.TLV_STAT_SENSOR_TEMP2
 	temperature = 0.0;
@@ -1632,20 +1667,25 @@ def get_tint():
 	row_num = cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Readout"] + cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin0"]
 	ADC_clock_freq = cfg_temp["Configuration_Records"]["Clocks"]["Master_Clock"]["Output_Freq1"]
 	
-	if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Trigger_Source"]==1: #PP mode
-		PP_mult = 2.0
+	# if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Trigger_Source"]==1: #PP mode
+	# 	PP_mult = 2.0
+	# else:
+	# 	PP_mult = 1.0
+	if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Pattern_Start"]==\
+			cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Pattern_End"]: #PP mode
+		PP_mult = 1.0   # Non-ping-pong mode
 	else:
-		PP_mult = 1.0
-		
+		PP_mult = 2.0   # ping-pong mode
+
 	return PP_mult * float(row_num) * float(sample_phase) * float(col_num) /  float(ADC_clock_freq) * 1000.0 # unit in millisec	 
 	
 	
 def get_min_tint(current_tint):
 
-	#set to 5 blanking rows
+	#set to min blanking rows
 	cfg_temp = read_config(cfg.CURRENT_CONFIG_PATH)
-	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin0"]=int(5)
-	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin1"]=int(5)
+	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin0"]=MIN_BLANK_ROWS
+	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin1"]=MIN_BLANK_ROWS
 	write_config(cfg.CURRENT_CONFIG_PATH , cfg_temp)
 	set_config(cfg.CURRENT_CONFIG_PATH )
 	min_tint = get_tint()
@@ -1657,14 +1697,19 @@ def get_min_tint(current_tint):
 	row_num = cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Readout"] 
 	ADC_clock_freq = cfg_temp["Configuration_Records"]["Clocks"]["Master_Clock"]["Output_Freq1"]
 	
-	if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Trigger_Source"]==1: #PP mode
-		PP_mult = 2.0
+	# if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Trigger_Source"]==1: #PP mode
+	# 	PP_mult = 2.0
+	# else:
+	# 	PP_mult = 1.0
+	if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Pattern_Start"]==\
+			cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Pattern_End"]: #PP mode
+		PP_mult = 1.0   # Non-ping-pong mode
 	else:
-		PP_mult = 1.0
-	
+		PP_mult = 2.0   # ping-pong mode
+
 	blanks = float(current_tint)*float(ADC_clock_freq)/1000.0/float(col_num)/PP_mult/ float(sample_phase) - float(row_num) 
-	if blanks < 0:
-		blanks = 0
+	if blanks < MIN_BLANK_ROWS:
+		blanks = MIN_BLANK_ROWS
 		
 	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin0"]=int(blanks)
 	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin1"]=int(blanks)
@@ -1677,23 +1722,27 @@ def get_min_tint(current_tint):
 def set_tint(target_tint_msec):
 	cfg_temp = read_config(cfg.CURRENT_CONFIG_PATH)
 	sample_phase = cfg_temp["Configuration_Records"]["Timing_Generator"]["Sample_Phases"]
-	col_num = cfg_temp["Configuration_Records"]["Timing_Generator"]["Sample_Phase_Valid_Columns"] + cfg_temp["Configuration_Records"]["Timing_Generator"]["Sample_Phase_Blanking"] 
+	col_num = cfg_temp["Configuration_Records"]["Timing_Generator"]["Sample_Phase_Valid_Columns"] + \
+			  cfg_temp["Configuration_Records"]["Timing_Generator"]["Sample_Phase_Blanking"]
 	row_num = cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Readout"] 
 	ADC_clock_freq = cfg_temp["Configuration_Records"]["Clocks"]["Master_Clock"]["Output_Freq1"]
 	
-	if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Trigger_Source"]==1: #PP mode
-		PP_mult = 2.0
+	if cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Pattern_Start"]==\
+			cfg_temp["Configuration_Records"]["Clocks"]["B_Clock"]["Pattern_End"]: #PP mode
+		PP_mult = 1.0   # Non-ping-pong mode
 	else:
-		PP_mult = 1.0
-	
-	blanks = float(target_tint_msec)*float(ADC_clock_freq)/1000.0/float(col_num)/PP_mult/ float(sample_phase) - float(row_num) 
-	if blanks < 0:
-		blanks = 0
+		PP_mult = 2.0   # ping-pong mode
+	#frame_tint_msec = float(target_tint_msec) / PP_mult
+	blanks = float(target_tint_msec)*float(ADC_clock_freq)/1000.0/float(col_num)/PP_mult/float(sample_phase) - float(row_num)#
+	#blanks = (float(target_tint_msec) * (float(ADC_clock_freq) / 1000.0 / float(col_num) / float(sample_phase))) - float(row_num)
+
+	if blanks < MIN_BLANK_ROWS:
+		blanks = MIN_BLANK_ROWS
 		
 	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin0"]=int(blanks)
 	cfg_temp["Configuration_Records"]["Timing_Generator"]["Rows_Blanked_Bin1"]=int(blanks)
 	write_config(cfg.CURRENT_CONFIG_PATH , cfg_temp)
-	set_config(cfg.CURRENT_CONFIG_PATH )
+	set_config(cfg.CURRENT_CONFIG_PATH)
 	
 	return
 	
@@ -3341,15 +3390,31 @@ def gsl_info():
 		print('Could not retrieve the Control Module state flags.')
 
 
-def con():
-	'''
-    Connect to a Nickel or Nano device over USB.
+def con(sn: str = None) -> bool:
+	'''Connect to a Nickel device over USB.
 
-    Parameters:
-        None
+    Parameters
+    ----------
+    sn : str, optional
+        Serial number of the control module (Control Module TLV 49). The default is None.
+
+    Returns
+    -------
+    bool
+        True if connection to the device was successful, otherwise False
     '''
-	# connect to the device
-	rc = lib.quantum_connect_device(0)
+	rc = lib.LIBQSI_STATUS_SUCCESS
+	if (sn == None):
+		sn = "NM1950002"
+
+	# Connect to the devic
+	if (sn == None):
+		# Connect to any device
+		rc = lib.quantum_connect_device(0)
+	else:
+		# Connect to a specific device
+		rc = lib.quantum_connect_to_device_by_serial_number(text2cffi(sn))
+
 	if rc != lib.LIBQSI_STATUS_SUCCESS:
 		print('Failed to connect to device, error %s' % rc)
 		return False

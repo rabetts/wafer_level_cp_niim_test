@@ -12,6 +12,8 @@ import shutil
 import threading
 
 import qsi_cfg as cfg
+import qsi_helpers
+
 sys.path.append(cfg.UTILITY_FILE_PATH)
 sys.path.append(cfg.MODULE_FILE_PATH)
 import qsi_helpers as qsi
@@ -419,6 +421,7 @@ class qsi_illum_001():
 		
 
 		fmb = '629' #MCLK scan forGSL laser
+		input('set electrode chewie, then press any key to continue')
 		t0 = time.time()
 		t = trd[trd['failure_mode_bin']==fmb]
 		t = t.reset_index().to_dict()
@@ -448,21 +451,22 @@ class qsi_illum_001():
 				# 	for b1 in np.arange(0.75,1.51,0.25):
 				#for b0,b1 in [(1.0,1.0), (1.25,1.25)]:
 				#for b0,b1 in [(1.1,1.2),(1.2,1.2),(1.3,1.3)]:
-				for b0,b1 in [(1.25,1.25),]:
-				#for b0 in np.arange(1.0, 1.61, 0.2):
-				#	for b1 in np.arange(1.0, 1.61, 0.2):
+				#for b0,b1 in [(1.35,1.35),]:
+				for b0,b1 in [(1.15,1.15),]:
+				# for b0 in np.arange(1.0, 1.61, 0.2):
+				# 	for b1 in np.arange(1.0, 1.61, 0.2):
 
 						#set b1 dc_level thru STS
-						set_vmod_led((b1-0.5)) # tmp fix, drop b1 by 0.5V so next set will trigger STS to restore
-						set_vmod_led((b1)) # tmp fix, use STS smu ch to set b1 dc bias
+						#set_b1_dc_offset((b1-0.5)) # tmp fix, drop b1 by 0.5V so next set will trigger STS to restore
+						#set_b1_dc_offset((b1)) # tmp fix, use STS smu ch to set b1 dc bias
 						#for n_blk_rows in [0, 2504]: # prev 461 also
 						#for n_blk_rows in [4, 316]:  # prev 461 also
 						for n_blk_rows in [4,316]:  # prev 461 also
 							# qsi.set_config("C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\configurations\\q9001_prober_outer_102x1024_with_2btm_rows_cont_65M_8M_S50194_picoquant_off.json")  # write the config w/ pq off
 							qsi.set_blk_row(n_blk_rows)
 							#set b0 dc_level
-							qsi.v_set('B0_L_H_DAC', str(b0))
-							print(f"b0 dc level set to {qsi.v_get('B0_L_H_DAC')} from v_set {b0} ")
+							#qsi.v_set('B0_L_H_DAC', str(b0))
+							#print(f"b0 dc level set to {qsi.v_get('B0_L_H_DAC')} from v_set {b0} ")
 							qsi.picoquant_enable(enable = False)
 							#qsi.gsl_enable(enable=0, vlaser=18.0, vbias=0.5)
 							# todo: hack
@@ -510,20 +514,30 @@ class qsi_illum_001():
 							if (True & (n_blk_rows == 4) & (idx==0)):
 								num_vt_frames = 25
 								vt_start = 1.1
-								vt_stop = 1.5
+								vt_stop = 1.8
 								vt_step = 0.1
 								frm_sequence = np.zeros([int(np.round((vt_stop-vt_start)/vt_step)), *(dark_frame.shape)])
 								y_roi = (17,18)
-								x_roi = (575,625)
+								x_roi = (590,640)
 								qsi.set_mclk_offset(0)  # solid collect region
 								b1_dc_lvls = np.arange(vt_start, vt_stop, vt_step)
-								for idx,b1_dc in enumerate(b1_dc_lvls):
-									set_vmod_led((b1_dc))  # tmp fix, use STS smu ch to set b1 dc bias
-									time.sleep(2)
-									frames = qsi.capture(num_vt_frames, 'cds')
-									frames_roi = frames[:,0,y_roi[0]:y_roi[1],x_roi[0]:x_roi[1]]
-									print(f'b1 dc = {b1_dc} gives mean response {frames_roi.mean()} and wtd dev {frames_roi.std()}')
-									frm_sequence[idx] = frames.mean(axis=0)
+								# for idx,b1_dc in enumerate(b1_dc_lvls):
+								# 	set_b1_dc_offset((b1_dc))  # tmp fix, use STS smu ch to set b1 dc bias
+								# 	time.sleep(2)
+								# 	frames = qsi.capture(num_vt_frames, 'cds')
+								# 	frames_roi = frames[:,0,y_roi[0]:y_roi[1],x_roi[0]:x_roi[1]]
+								# 	print(f'b1 dc = {b1_dc} gives mean response {frames_roi.mean()} and std dev {frames_roi.std()}')
+								# 	print(f'b1 dc = {b1_dc} gives column fpn {frames_roi[0].mean(axis=1).std()}')
+								# 	frm_sequence[idx] = frames.mean(axis=0)
+								# vddp_lvls = np.arange(3.5,3.8,0.025)
+								# for idx,vddp_lvl in enumerate(vddp_lvls):
+								# 	qsi_helpers.set_chip_voltage('VDDP', vddp_lvl)  # tmp fix, use STS smu ch to set b1 dc bias
+								# 	time.sleep(2)
+								# 	frames = qsi.capture(num_vt_frames, 'cds')
+								# 	frames_roi = frames[:,0,y_roi[0]:y_roi[1],x_roi[0]:x_roi[1]]
+								# 	print(f'vddp = {vddp_lvl} gives mean response {frames_roi.mean()} and std dev {frames_roi.std()}')
+								# 	print(f'vddp = {vddp_lvl} gives column fpn {frames_roi[0].mean(axis=1).std()}')
+								# 	#frm_sequence[idx] = frames.mean(axis=0)
 								np.save(setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
 										setting['Wafer']) + '_P' + str(setting['Chip_position']) + '_' + \
 										f'_b1_vt_search_{vt_start}_{vt_stop}_step_{vt_step}_' + test_str, frm_sequence)
@@ -534,7 +548,7 @@ class qsi_illum_001():
 								except:
 									b1_tune = b1_common
 								# restore b1 dc bias
-								set_vmod_led((b1))  # tmp fix, use STS smu ch to set b1 dc bias
+								#set_b1_dc_offset((b1))  # tmp fix, use STS smu ch to set b1 dc bias
 							else:
 								b1_tune = b1_common
 							# sweep mclks, saving frames
@@ -546,8 +560,10 @@ class qsi_illum_001():
 
 								# assume 4d , avg 1st 2 dims to get single frame
 								# do variable fr averaging depending on mclk window, high for falling  edge only
-								num_mclk_frames = 169 if ((i>25) and (i<75)) else 2
-								b_check_chewie = False
+								num_mclk_frames = 250 if ((i>75) and (i<125)) else 2
+								#num_mclk_frames = 169 if ((i>25) and (i<75)) else 2
+								#num_mclk_frames = 2
+								b_check_chewie = True
 								if ((i==0) & (b_check_chewie)):
 									qsi.dis()
 									input('disconnect from NIM, press any key to reconnect and continue')
@@ -581,7 +597,14 @@ class qsi_illum_001():
 								#dud0 = dud0[dud0 !=0.0]
 								#frm_sequence_l[i,0] = np.median(dud0)
 								frm_sequence_l[i] = dud
-								# lost mclk setting in this save, better to pickle dict?
+								if ((i==80) or (i==115)):  # save off a full frames captured
+									np.save(
+										setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
+											setting['Wafer']) + '_P' + str(
+											setting['Chip_position']) + '_' + str(
+											n_blk_rows) + f'_mclk_sweep_b0_{b0}V_b1_{b1}V_dc50_idx_{i}_sr_ns_' + test_str, capture_frame)
+
+							# lost mclk setting in this save, better to pickle dict?
 
 							# save sweep frames and turn off laser
 							np.save(
@@ -591,7 +614,7 @@ class qsi_illum_001():
 							# display rej ratio for this mclk sequence
 							y_roi = (99,101)
 							y_roi = (17,18)
-							x_roi = (575,625)
+							x_roi = (590,640)
 							rr_roi = calc_mclk_sweep_rr(frm_sequence_l[:, 0, y_roi[0]:y_roi[1], x_roi[0]:x_roi[1]])
 							print(f'rej ratio for blanking rows {n_blk_rows} {y_roi[0]}:{y_roi[1]}, {x_roi[0]}:{x_roi[1]} = {rr_roi}')
 					# todo: tmp - check dark frame after mclk sweep, compare to pre
@@ -629,7 +652,7 @@ class qsi_illum_001():
 			qsi.picoquant_enable(enable=False)
 			wait_for_picoquant_sync()
 			qsi.set_mclk_offset(0)
-			set_vmod_led((0)) # drop to 0V for move to next die
+			set_b1_dc_offset((0)) # drop to 0V for move to next die
 
 
 
@@ -1096,24 +1119,24 @@ def wait_for_picoquant_sync():
 				return 0
 		return 1
 
-
+#deprecated
 def _flask_get_led_v_mod_real():
-	r = requests.get('http://10.52.11.36:5000/get_v_mod_led_real')
+	r = requests.get('http://10.52.11.145:5000/get_v_mod_led_real')
 	vmod = float(eval(r.text)['v'])
 	return (vmod)
 
-
+# deprcated
 def _flask_set_led_v_mod_request(v_mod_request):
-	r = requests.get(f'http://10.52.11.36:5000/set_v_mod_led_request/{v_mod_request}')
+	r = requests.get(f'http://10.52.11.145:5000/set_v_mod_led_request/{v_mod_request}')
 	return (r.text)
 
 
 def _flask_get_i_led():
-	r = requests.get('http://10.52.11.36:5000/get_i_led')
+	r = requests.get('http://10.52.11.145:5000/get_i_led')
 	i = float(eval(r.text)['i'])
 	return (i)
 
-
+#deprecated here
 def set_vmod_led(vmod_led):
 	_flask_set_led_v_mod_request(vmod_led)
 	while True:
@@ -1121,3 +1144,42 @@ def set_vmod_led(vmod_led):
 		if np.isclose(_flask_get_led_v_mod_real(), vmod_led, rtol=0.002):
 			print(f'LED Vmod is set to {vmod_led}')
 			break
+
+def set_b1_dc_offset(v_b1_dc):
+	_flask_set_b1_dc_offset(v_b1_dc)
+	while True:
+		time.sleep(1)
+		if np.isclose(_flask_get_b1_dc_offset(), v_b1_dc, rtol=0.002):
+			print(f'b1 dc offset is set to {v_b1_dc}')
+			break
+
+def _flask_get_sts_smu_real():
+	r = requests.get('http://10.52.11.145:5000/get_sts_smu_real')
+	d_smus = eval(r.text)
+	for smu, v in d_smus.items():
+		print(smu, v)
+	return (d_smus)
+
+def _flask_get_b1_dc_offset():
+	return _flask_get_sts_smu_real()['4162_ch6_sma6']
+
+def _flask_set_b1_dc_offset(v_request):
+	r = requests.get(
+		"http://10.52.11.145:5000/set_sts_smu_req/{'4162_ch6_sma6': " + str(v_request) + "}")
+	return (r.text)
+
+def _flask_get_b0_static_real():
+	return _flask_get_sts_smu_real()['4139_ch2_b0_vhi_l']
+
+def _flask_set_b0_static_request(v_request):
+	r = requests.get(
+		"http://10.52.11.145:5000/set_sts_smu_req/{'4139_ch2_b0_vhi_l': " + str(v_request) + "}")
+	return (r.text)
+
+def _flask_get_b1_static_real():
+	return _flask_get_sts_smu_real()['4139_ch0_b12_vhi_l']
+
+def _flask_set_b1_static_request(v_request):
+	r = requests.get(
+		"http://10.52.11.145:5000/set_sts_smu_req/{'4139_ch0_b12_vhi_l': " + str(v_request) + "}")
+	return (r.text)

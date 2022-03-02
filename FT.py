@@ -1118,7 +1118,7 @@ class FinalTest(object):
 	# extract methods functions for run_test_cp
 	# get lot/wfr/x/y from flask servere
 	def get_lwxy_from_sts(self):
-		die_id = requests.get("http://10.52.11.36:5000/get_die_id").text
+		die_id = requests.get("http://10.52.11.145:5000/get_die_id").text
 		mtch = re.search('(?P<lot>\w*)-(?P<wafer>\d+)__(?P<chip_position>X-?\d+Y-?\d+)', die_id)
 		if mtch:
 			mtch = mtch.groupdict()
@@ -1144,7 +1144,7 @@ class FinalTest(object):
 	# poll flask server for 'controller' state... wait if 'sts', start testing if 'nim'
 	def wait_for_start_from_sts(self):
 		i = 0
-		r = requests.get('http://10.52.11.36:5000/get_controller')
+		r = requests.get('http://10.52.11.145:5000/get_controller')
 		while r.text != 'nim':
 			if i % 1000 == 0:
 				print(r.text)
@@ -1155,13 +1155,13 @@ class FinalTest(object):
 			elif i > 100:
 				print('timeout')
 				return 'timeout'
-			r = requests.get('http://10.52.11.36:5000/get_controller')
+			r = requests.get('http://10.52.11.145:5000/get_controller')
 		print('starting NIM testing')
 		return 'start'
 
 	# signal STS that NMI done testing current die, and trigger move to next die
 	def send_finished_to_sts(self):
-		requests.get(f'http://10.52.11.36:5000/nim_finished/{self.hard_bin}')
+		requests.get(f'http://10.52.11.145:5000/nim_finished/{self.hard_bin}')
 
 	def run_cp_test(self):
 		'''
@@ -1180,12 +1180,12 @@ class FinalTest(object):
 		ctlr_state = self.wait_for_start_from_sts()
 		# loop for multi die, as controlled by STS program
 		while ctlr_state != 'stop':
-			self.run_test()
+			hard_bin = self.run_test()
 			self.send_finished_to_sts()
 			ctlr_state = self.wait_for_start_from_sts()
 			self.get_lwxy_from_sts()
 		print('cp control loop ended by STS')
-
+		return(hard_bin)
 
 	def run_test(self):
 
@@ -1306,8 +1306,11 @@ class FinalTest(object):
 		#check if the lot and wafer is listed in photonics data, check to make sure the lot/wafer are valid
 		df = pd.read_csv(cfg.UTILITY_FILE_PATH + cfg.PHOTONICS_FILE, low_memory=False).astype('str')
 		try:
-			self.photonics_data = df.loc[(df['lot'] == self.Lot.get()) & (df['wafer'] == str(int(self.Wafer.get())) )]
-			self.prod_setup['aperture_file'] = self.photonics_data.values.tolist()[0][self.photonics_data.columns.get_loc("aperture_file")] 
+			if cfg.b_skip_photonics==True:
+				self.photonics_data = df.iloc[-1:]
+			else:
+				self.photonics_data = df.loc[(df['lot'] == self.Lot.get()) & (df['wafer'] == str(int(self.Wafer.get())) )]
+			self.prod_setup['aperture_file'] = self.photonics_data.values.tolist()[0][self.photonics_data.columns.get_loc("aperture_file")]
 			self.prod_setup['filter'] = self.photonics_data.values.tolist()[0][self.photonics_data.columns.get_loc("filter")]
 		except:
 			messagebox.showinfo('Error!', 'Invalid Lot and/or Wafer: Try Again!')

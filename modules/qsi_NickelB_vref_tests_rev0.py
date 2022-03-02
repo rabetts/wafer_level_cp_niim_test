@@ -1,94 +1,111 @@
-#from qsi_falcon import qsi_helpers as qsi
+# from qsi_falcon import qsi_helpers as qsi
 import numpy as np
 import pandas as pd
-import os
+#import os
 import sys
-import json
-from collections import OrderedDict
-from scipy.io import savemat
-import matplotlib.pyplot as plt
+#import json
+#from collections import OrderedDict
+#from scipy.io import savemat
+#import matplotlib.pyplot as plt
 from PIL import Image
 import time
-import shutil
+#import shutil
 
 import qsi_cfg as cfg
 sys.path.append(cfg.UTILITY_FILE_PATH)
 sys.path.append(cfg.MODULE_FILE_PATH)
 import qsi_helpers as qsi
 
+b_check_chewie = False  # set to discoonect so can manually check image with chewie before vref test
 
 
-
-
-     
-class qsi_vref_001():
+class qsi_vref_001:
     name = 'qsi_vref_001'
 
     def __init__(self):
         hard_bin = 1
 
-       
-    def run(self,test_data,test_conditions,continue_test, hard_bin, failure_mode_bin,retest_device):
-        
-        
-        #load up current lot/wfr/part/data_file settings
+    def run(self, test_data, test_conditions, continue_test, hard_bin, failure_mode_bin, retest_device):
+
+        # load up current lot/wfr/part/data_file settings
         try:
             dd = pd.read_csv(cfg.UTILITY_FILE_PATH + "qsi_current.csv")
-            setting = dict(zip(dd['condition'].to_list(),dd['value'].to_list()))
+            setting = dict(zip(dd['condition'].to_list(), dd['value'].to_list()))
         except:
             raise Exception('Problem with qsi_current.csv file!')
             
         try:
-            trd = pd.read_csv(cfg.TRD_FILE_PATH + cfg.TRD_FILES[int(setting['Product_number'])], low_memory=False).astype('str')
+            trd = pd.read_csv(cfg.TRD_FILE_PATH + cfg.TRD_FILES[int(setting['Product_number'])], low_memory=False).\
+                astype('str')
 
         except:
             raise Exception('Problem with trd file!')
-        
 
-        
-       
-   
-     
-      
-        
-        #############################################################################################################################################################    
-        #############################################################################################################################################################          
-        #############################################################################################################################################################         
-        if 0:
-            qsi.dis()
-            input('disconnect from NIM, press any key to reconnect and continue')
-            qsi.con()
-            time.sleep(1)
-        fmb = '311' #set VREFSH_T/B
+        fmb = '311'   # set VREFSH_T/B
         t0 = time.time()
-        t = trd[trd['failure_mode_bin']==fmb]
+        t = trd[trd['failure_mode_bin'] == fmb]
         t = t.reset_index().to_dict()
         vref_params = []
         vref_done = qsi.is_yes(t['test_performed'][0])
 
-        if len(t['failure_mode_bin'])>0: #is this test in the TRD file?
-            if qsi.is_yes(t['test_performed'][0]): #the test is in the TRD file and is done
+        if len(t['failure_mode_bin']) > 0:  # is this test in the TRD file?
+            if qsi.is_yes(t['test_performed'][0]):  # the test is in the TRD file and is done
                 try:
-                #if 1:
+                # if 1:
                     adcBit = 10
-                    Ntb = 1 #number of time bins
-                    target = test_conditions['vref_target'] #DN good for PGA spi setting = 1
+                    Ntb = 1  # number of time bins
+                    target = test_conditions['vref_target']  # DN good for PGA spi setting = 1
                     ROI = cfg.vref_ROIS[int(setting['Product_number'])]
-                    
-                    if qsi.set_rst_level(ROI, Ntb, target,adcBit) == False:
-                        parameter_out = False
-                    
-                    else:
-                    
-                        qsi.set_CROP_RAW()
-                        frame = qsi.capture(1,'crop')
-                        #frame = frame[:, :, :, 0:int(frame.shape[-1] // 16 * 15)]
 
-                        qsi.set_CDS_SINGLE_BIN()
-                        
-                        if qsi.is_yes(t['save_image'][0]): #do we want to save image(s)?
+                    # auto exposure here
+                    if 0:
+                        qsi.dis()
+                        input('disconnected for chewie inspection, press any key to continue')
+                        qsi.con()
+                    # disable on chip CDS
+                    if cfg.chip_type == 'NickelG':
+                        qsi.set_config(cfg.CONFIGURATION_FILE_PATH + cfg.OFF_CHIP_CDS_CONFIG_PATH)
+                    #     config_temp = config_orig.copy()
+                    #     config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["0"][
+                    # "vref_ctrl"] = int(integer)
+                    #     config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["1"][
+                    # "vref_ctrl"] = int(integer)
+                    #     config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["2"][
+                    # "vref_ctrl"] = int(integer)
+                    #     config_temp["Configuration_Records"]["Chip_Configuration"]["Registers"]["chiplet_registers"]["3"][
+                    # "vref_ctrl"] = int(integer)
+                    #     qsi.write_config(cfg.CURRENT_CONFIG_PATH, config_temp)
+                    if 0:
+                        qsi.dis()
+                        input('disconnected for chewie inspection, press any key to continue')
+                        qsi.con()
+                    if not qsi.set_rst_level(ROI, Ntb, target, adcBit):
+                        parameter_out = False
+                        vref_tile_params = []
+                        vref_bad_tile_count = []
+
+                    else:
+                        if cfg.chip_type != 'NickelG':
+                            qsi.set_CROP_RAW()
+                        frame = qsi.capture(1, 'crop')
+                        # frame = frame[:, :, :, 0:int(frame.shape[-1] // 16 * 15)]
+
+
+                        if 0:
+                            qsi.dis()
+                            input('disconnected for chewie inspection, press any key to continue')
+                            qsi.con()
+                        if cfg.chip_type != 'NickelG':
+                            qsi.set_CDS_SINGLE_BIN()
+                        if 0:
+                            qsi.dis()
+                            input('disconnected for chewie inspection, press any key to continue')
+                            qsi.con()
+                        if qsi.is_yes(t['save_image'][0]):  # do we want to save image(s)?
                             test_str = setting['Image_stamp']
-                            Image.fromarray(0.25 * frame[0,0,:,:]).save(setting['Data_directory']+'images\\'+setting['Lot']+'_W'+str(setting['Wafer'])+'_P'+str(setting['Chip_position'])+'_reset_'+test_str+'_bin0.tif') 
+                            Image.fromarray(0.25 * frame[0,0,:,:]).save(setting['Data_directory']+'images\\'+\
+                                    setting['Lot']+'_W'+str(setting['Wafer'])+'_P'+str(setting['Chip_position'])+\
+                                    '_reset_'+test_str+'_bin0.tif')
                             #Image.fromarray(0.25 * frame[0,1,:,:]).save(setting['Data_directory']+'images\\'+setting['Lot']+'_W'+str(setting['Wafer'])+'_P'+str(setting['Chip_position'])+'_reset_'+test_str+'_bin1.tif')
                         
                         #calculate a bunch of parameters from the frame
@@ -97,7 +114,12 @@ class qsi_vref_001():
                         #vref_params = [int(qsi.get_Vrefsh()), np.percentile(f,5),np.percentile(f,50),np.percentile(f,95),np.std(f), np.percentile(g,5),np.percentile(g,50),np.percentile(g,95),np.std(g)]
                         vref_params = [int(qsi.get_Vrefsh()), np.percentile(f,5),np.percentile(f,50),np.percentile(f,95),np.std(f)]
 
-                        
+                        if cfg.chip_type == 'NickelG':
+                            # restore to on chip CDS config
+                            qsi.set_config(cfg.CURRENT_CONFIG_PATH)
+                        else:
+                            qsi.set_CROP_RAW()
+
                         #calculate parameters over tiles
                         no_col = frame.shape[3]
                         no_row = frame.shape[2]
@@ -156,7 +178,7 @@ class qsi_vref_001():
                         
                         #vref_tile_params = [tile_max_signal_bin0,tile_min_signal_bin0,tile_max_noise_bin0,tile_min_noise_bin0,
                         #                    tile_max_signal_bin1,tile_min_signal_bin1,tile_max_noise_bin1,tile_min_noise_bin1]
-                        vref_tile_params = [tile_max_signal_bin0,tile_min_signal_bin0,tile_max_noise_bin0,tile_min_noise_bin0,]
+                        vref_tile_params = [tile_max_signal_bin0,tile_min_signal_bin0,tile_max_noise_bin0,tile_min_noise_bin0]
 
                        #vref_bad_tile_count = [no_bad_tiles_signal_bin0,no_bad_tiles_signal_bin1,no_bad_tiles_noise_bin0,no_bad_tiles_noise_bin1]
                         vref_bad_tile_count = [no_bad_tiles_signal_bin0,no_bad_tiles_noise_bin0]
@@ -165,7 +187,6 @@ class qsi_vref_001():
                 except:
                     parameter_out = False
 
-                        
             else: #the test is in the TRD file but is not done so just add a line
                 parameter_out = -1
         

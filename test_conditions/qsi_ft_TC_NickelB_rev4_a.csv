@@ -9,7 +9,7 @@ min_align_signal,50
 illum_median_signal,100
 tint_mult,10
 tint_scan_frame_no,20
-MCLK points,190
+MCLK points,300
 MCLK step,25
 MCLK start,0
 mclk_beg,1450
