@@ -1,0 +1,51 @@
+{
+  "Chewie_Configuration": {
+    "USB_Configuration": {
+      "connection_mode": "CONFIG_SPECIFIC",
+      "specific_hs_bus": 1,
+      "specific_hs_port": 41728,
+      "specific_ss_bus": 1,
+      "specific_ss_port": 25357
+    },
+    "Firmware": {
+      "use_application_path": true,
+      "user_specified_path": "",
+      "user_specified_name": "",
+      "perform_auto_firmware_upgrade_check": true
+    },
+    "Debugging": {
+      "dll_debug_enabled": false,
+      "dll_debug_filename": ""
+    },
+    "Sound": {
+      "sound_effects_enabled": true
+    },
+    "Manufacturing": {
+      "database_server": "",
+      "database_port": 0,
+      "database_user": "",
+      "database_password": "",
+      "database_name": "",
+      "default_operator_name": "",
+      "manufacturer_id": ""
+    },
+    "Diagnostics_Mode": {
+      "database_server": "",
+      "database_port": 0,
+      "database_user": "",
+      "database_password": "",
+      "database_name": "",
+      "testbench_files_path": "",
+      "default_operator_name": "",
+      "tester_description": "",
+      "tester_part_number": "",
+      "pfs_station": "",
+      "available_test_groups": [],
+      "use_workflow_field": false,
+      "use_firmware_file": ""
+    },
+    "visible_tabs": [],
+    "hidden_menu_items": [],
+    "hidden_statusbar_items": []
+  }
+}
