@@ -338,7 +338,7 @@ class qsi_init_001():
                                         'die_num':xy_to_die_num(x,y), 'used_counter':0}
                     # read efuse
                     d_efuse_read = qsi.efuse_read_dict()
-                    print(f"existing efuse {d_efuse_write}")
+                    print(f"existing efuse {d_efuse_read}")
                     if d_efuse_write != d_efuse_read:
                         qsi.efuse_write_dict(d_efuse_write) # (C api will take care of field mods)
                         print(f"write new efuse {d_efuse_write}")

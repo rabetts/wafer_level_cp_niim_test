@@ -29,9 +29,11 @@ from qsi_NickelB_assembly_fails_rev0 import qsi_assembly_fail_001
 
 
 def run_all(results):
-	# dark + gsl/picoquant mclk sweeps
+	# for std production
+	test_items = [qsi_init_001(), qsi_dark_001()]
+	# for std production (i.e. dark) + gsl/picoquant mclk sweeps
 	#test_items = [qsi_init_001(),qsi_vref_001(),qsi_dark_001(),qsi_illum_001()]
-	test_items = [qsi_init_001(),qsi_vref_001(),qsi_dark_001()]
+
 	#test_items = [qsi_init_001(),]
 	# dark tests only
 	#test_items = [qsi_init_001(),qsi_vref_001(),qsi_dark_001()]

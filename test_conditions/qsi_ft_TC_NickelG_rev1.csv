@@ -12,9 +12,9 @@ tint_scan_frame_no,20
 tint_min_row,10
 dark_blinking_frame_no,144
 white_pix_thr,75
-MCLK points,300
+MCLK points,125
 MCLK step,25
-MCLK start,0
+MCLK start,2500
 mclk_beg,1450
 mclk_end,2500
 knee,2200

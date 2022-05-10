@@ -384,9 +384,20 @@ def capture(num_frames, mode='cds', max_retries=3):
 	lib.quantum_capture_n_frames(num_frames, num_frames_actually_captured, frames)
 	while num_frames != num_frames_actually_captured[0]:
 		print('ERROR - only captured %s of %d frames?' % (num_frames_actually_captured[0], num_frames))
-		print(f'Retry attempt {retry}')
+		print(f'Retry attempt {retry}: ', end='')
+		time.sleep(1)
+		print(f'Disconnect ', end='')
+		dis()
+		time.sleep(1)
+		print(f'Connect ', end='')
+		con()
+		time.sleep(1+ (retry * 60))
+		print(f'Sleep Done... continuing')
+		if retry==(max_retries - 1):
+			input('Enable breakpoints then continue')
 		lib.quantum_capture_n_frames(num_frames, num_frames_actually_captured, frames)
 		retry+=1
+
 		if retry>=max_retries:
 			print('Max retries attempted, failed to capture all frames')
 			return(-1)
@@ -489,7 +500,7 @@ def capture_chiplets(num_frames, mode='cds'):
 	# return the numpy array to the user
 	return ar
 
-# define a convenience function that creates a numyp array from a series of frames captured
+# define a convenience function that creates a numpy array from a series of frames captured
 def capture_raw(num_frames, mode='raw'):
 	# capture our requested frames into RAM
 	num_frames_actually_captured = ffi.new('uint32_t *')
@@ -922,8 +933,8 @@ def set_mclk_offset(n):
 	# chnage mclk1+ mclk2 (recovered from laser)
 	#set_clk_offsets('MCLK', 0x6, [0,n,n,0])
 	# change laser trigger 2
-	set_clk_offsets('MCLK', 0x8, [0,0,0,n])
-	# set_clk_offsets('MCLK', 0x1, [n,0,0,0])  # altnernate mclk sweep.  use negative offsets here (match chewie)
+	#set_clk_offsets('MCLK', 0x8, [0,0,0,n])
+	set_clk_offsets('MCLK', 0x1, [n,0,0,0])  # altnernate mclk sweep.  use negative offsets here (match chewie)
 
 def set_clk_offsets(name, bits, clock_phase_step_array):
 	#example: set_clk_offsets('MCLK', 0x9, [i,0,0,i])
@@ -3407,7 +3418,7 @@ def con(sn: str = None) -> bool:
 	if (sn == None):
 		sn = "NM1950002"
 
-	# Connect to the devic
+	# Connect to the device
 	if (sn == None):
 		# Connect to any device
 		rc = lib.quantum_connect_device(0)

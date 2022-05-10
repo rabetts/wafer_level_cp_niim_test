@@ -1118,7 +1118,7 @@ class FinalTest(object):
 	# extract methods functions for run_test_cp
 	# get lot/wfr/x/y from flask servere
 	def get_lwxy_from_sts(self):
-		die_id = requests.get("http://10.52.11.145:5000/get_die_id").text
+		die_id = requests.get(f"http://{cfg.flask_server_ip}:5000/get_die_id").text
 		mtch = re.search('(?P<lot>\w*)-(?P<wafer>\d+)__(?P<chip_position>X-?\d+Y-?\d+)', die_id)
 		if mtch:
 			mtch = mtch.groupdict()
@@ -1144,7 +1144,7 @@ class FinalTest(object):
 	# poll flask server for 'controller' state... wait if 'sts', start testing if 'nim'
 	def wait_for_start_from_sts(self):
 		i = 0
-		r = requests.get('http://10.52.11.145:5000/get_controller')
+		r = requests.get(f'http://{cfg.flask_server_ip}:5000/get_controller')
 		while r.text != 'nim':
 			if i % 1000 == 0:
 				print(r.text)
@@ -1155,13 +1155,13 @@ class FinalTest(object):
 			elif i > 100:
 				print('timeout')
 				return 'timeout'
-			r = requests.get('http://10.52.11.145:5000/get_controller')
+			r = requests.get(f'http://{cfg.flask_server_ip}:5000/get_controller')
 		print('starting NIM testing')
 		return 'start'
 
 	# signal STS that NMI done testing current die, and trigger move to next die
 	def send_finished_to_sts(self):
-		requests.get(f'http://10.52.11.145:5000/nim_finished/{self.hard_bin}')
+		requests.get(f'http://{cfg.flask_server_ip}:5000/nim_finished/{self.hard_bin}')
 
 	def run_cp_test(self):
 		'''

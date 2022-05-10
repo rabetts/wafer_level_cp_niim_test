@@ -438,7 +438,7 @@ class qsi_dark_001():
 			#############################################################################################################################################################		   
 			#############################################################################################################################################################	
 			# save min/max tile parameters for seq tint
-			for i in range(len(dark_tile_params_min_tint)):	 
+			for i in range(len(dark_tile_params_seq_tint)):
 			
 				fmb = str(i+460)
 				t0 = time.time()
@@ -468,7 +468,7 @@ class qsi_dark_001():
 			#############################################################################################################################################################		   
 			#############################################################################################################################################################	
 			# count # of bad tiles by each criteria min tint
-			for i in range(len(dark_min_tint_bad_tile_count)):	
+			for i in range(len(dark_seq_tint_bad_tile_count)):
 			
 				fmb = str(i+470)
 				t0 = time.time()
@@ -581,166 +581,166 @@ class qsi_dark_001():
 						retest_device = True
 				return test_data, continue_test, hard_bin, failure_mode_bin,retest_device #testng is over for this chip 
 
-			##########################################################
-			# dark PP mode blinking pixel test
-			##########################################################
-			qsi.set_blk_row(test_conditions['tint_min_row'])
-			tint_min = qsi.get_tint()
+		##########################################################
+		# dark PP mode blinking pixel test
+		##########################################################
+		qsi.set_blk_row(test_conditions['tint_min_row'])
+		tint_min = qsi.get_tint()
 
-			########################################
-			# go to PP mode
-			########################################
-			qsi.set_PP_mode()
+		########################################
+		# go to PP mode
+		########################################
+		qsi.set_PP_mode()
 
-			fmb = '490'
-			t0 = time.time()
-			t = trd[trd['failure_mode_bin'] == fmb]
-			t = t.reset_index().to_dict()
-			try:
-				dark_blinking_done = qsi.is_yes(t['test_performed'][0])
-			except:
-				dark_blinking_done = False
+		fmb = '490'
+		t0 = time.time()
+		t = trd[trd['failure_mode_bin'] == fmb]
+		t = t.reset_index().to_dict()
+		try:
+			dark_blinking_done = qsi.is_yes(t['test_performed'][0])
+		except:
+			dark_blinking_done = False
 
-			# if dark_blinking_done is false then skip all tests
-			if dark_blinking_done:
+		# if dark_blinking_done is false then skip all tests
+		if dark_blinking_done:
 
-				frame = qsi.capture(int(test_conditions['dark_blinking_frame_no']), 'cds')
-				# calculate noise of each pixel
-				blink_noise_bin0 = np.std(frame[:, 0, :, :], axis=0).flatten()
-				# hack.  nickel D giving smaller frame than Nickel G
-				if cfg.chip_type=='NickelD':
-					blink_noise_bin1 = np.std(frame[:, 0, :, :], axis=0).flatten()
-				else:
-					blink_noise_bin1 = np.std(frame[:, 1, :, :], axis=0).flatten()
+			frame = qsi.capture(int(test_conditions['dark_blinking_frame_no']), 'cds')
+			# calculate noise of each pixel
+			blink_noise_bin0 = np.std(frame[:, 0, :, :], axis=0).flatten()
+			# hack.  nickel D giving smaller frame than Nickel G
+			if cfg.chip_type=='NickelD':
+				blink_noise_bin1 = np.std(frame[:, 0, :, :], axis=0).flatten()
+			else:
+				blink_noise_bin1 = np.std(frame[:, 1, :, :], axis=0).flatten()
 
 
-				blink_noise_tot_num = blink_noise_bin0.shape[0]
+			blink_noise_tot_num = blink_noise_bin0.shape[0]
 
-				blink_noise_median_bin0 = np.median(blink_noise_bin0)
-				blink_noise_median_bin1 = np.median(blink_noise_bin1)
-				blink_noise_IQR_bin0 = np.percentile(blink_noise_bin0, 75) - np.percentile(blink_noise_bin0, 25)
-				blink_noise_IQR_bin1 = np.percentile(blink_noise_bin1, 75) - np.percentile(blink_noise_bin1, 25)
+			blink_noise_median_bin0 = np.median(blink_noise_bin0)
+			blink_noise_median_bin1 = np.median(blink_noise_bin1)
+			blink_noise_IQR_bin0 = np.percentile(blink_noise_bin0, 75) - np.percentile(blink_noise_bin0, 25)
+			blink_noise_IQR_bin1 = np.percentile(blink_noise_bin1, 75) - np.percentile(blink_noise_bin1, 25)
 
-				# calculate # pixels with noise > 3*IQR + median
+			# calculate # pixels with noise > 3*IQR + median
 
-				blink_noise_percent_thr_35_bin0 = float(
-					(blink_noise_bin0 > 3.5).sum()) / blink_noise_tot_num * 100.0
-				blink_noise_percent_thr_35_bin1 = float(
-					(blink_noise_bin1 > 3.5).sum()) / blink_noise_tot_num * 100.0
-				blink_noise_percent_thr_50_bin0 = float(
-					(blink_noise_bin0 > 5.0).sum()) / blink_noise_tot_num * 100.0
-				blink_noise_percent_thr_50_bin1 = float(
-					(blink_noise_bin1 > 5.0).sum()) / blink_noise_tot_num * 100.0
+			blink_noise_percent_thr_35_bin0 = float(
+				(blink_noise_bin0 > 3.5).sum()) / blink_noise_tot_num * 100.0
+			blink_noise_percent_thr_35_bin1 = float(
+				(blink_noise_bin1 > 3.5).sum()) / blink_noise_tot_num * 100.0
+			blink_noise_percent_thr_50_bin0 = float(
+				(blink_noise_bin0 > 5.0).sum()) / blink_noise_tot_num * 100.0
+			blink_noise_percent_thr_50_bin1 = float(
+				(blink_noise_bin1 > 5.0).sum()) / blink_noise_tot_num * 100.0
 
-				print('number of bin1 pixels with >3.5DN dark temporal noise = ' + str(
-					int(blink_noise_percent_thr_35_bin1 * blink_noise_tot_num / 100.0)))
-				print('number of bin1 pixels with >5.0DN dark temporal noise = ' + str(
-					int(blink_noise_percent_thr_50_bin1 * blink_noise_tot_num / 100.0)))
-				print('number of bin0 pixels with >3.5DN dark temporal noise = ' + str(
-					int(blink_noise_percent_thr_35_bin0 * blink_noise_tot_num / 100.0)))
-				print('number of bin0 pixels with >5.0DN dark temporal noise = ' + str(
-					int(blink_noise_percent_thr_50_bin0 * blink_noise_tot_num / 100.0)))
-				if qsi.is_yes(t['save_image'][0]):  # do we want to save image(s)?
-					test_str = setting['Image_stamp']
-					props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
-					# bin0 noise distribution
-					di = pd.DataFrame(blink_noise_bin0)
-					di.columns = ['noise']
-					hist = di.hist(figsize=(12, 8), bins=500)
-					p = plt.gca()
-					title_text = 'Blinking Pixel Noise Dist. bin0, median = ' + str(
-						round(blink_noise_median_bin0, 2)) + ', IQR = ' + str(round(blink_noise_IQR_bin0, 2))
-					file_name = setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
-						setting['Wafer']) + '_P' + str(
-						setting['Chip_position']) + '_blinking_pixel_dist_' + test_str + '_bin0.png'
-					textstr = '>3.5DN percent=%.3f\n>5.0DN percent=%.3f\ntot_num=%.0f' % (
-					blink_noise_percent_thr_35_bin0, blink_noise_percent_thr_50_bin0, blink_noise_tot_num)
-					p.set_title(title_text, fontsize=12)
-					p.set_xlabel('Temporal Noise (DN)')
-					p.set_ylabel('# pixels')
-					p.text(0.8, .9, textstr, transform=p.transAxes, fontsize=9, verticalalignment='top', bbox=props)
-					plt.grid('on', 'major', 'y')
-					p.set_yscale('log')
-					plt.tight_layout()
+			print('number of bin1 pixels with >3.5DN dark temporal noise = ' + str(
+				int(blink_noise_percent_thr_35_bin1 * blink_noise_tot_num / 100.0)))
+			print('number of bin1 pixels with >5.0DN dark temporal noise = ' + str(
+				int(blink_noise_percent_thr_50_bin1 * blink_noise_tot_num / 100.0)))
+			print('number of bin0 pixels with >3.5DN dark temporal noise = ' + str(
+				int(blink_noise_percent_thr_35_bin0 * blink_noise_tot_num / 100.0)))
+			print('number of bin0 pixels with >5.0DN dark temporal noise = ' + str(
+				int(blink_noise_percent_thr_50_bin0 * blink_noise_tot_num / 100.0)))
+			if qsi.is_yes(t['save_image'][0]):  # do we want to save image(s)?
+				test_str = setting['Image_stamp']
+				props = dict(boxstyle='square', facecolor='wheat', alpha=0.5)
+				# bin0 noise distribution
+				di = pd.DataFrame(blink_noise_bin0)
+				di.columns = ['noise']
+				hist = di.hist(figsize=(12, 8), bins=500)
+				p = plt.gca()
+				title_text = 'Blinking Pixel Noise Dist. bin0, median = ' + str(
+					round(blink_noise_median_bin0, 2)) + ', IQR = ' + str(round(blink_noise_IQR_bin0, 2))
+				file_name = setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
+					setting['Wafer']) + '_P' + str(
+					setting['Chip_position']) + '_blinking_pixel_dist_' + test_str + '_bin0.png'
+				textstr = '>3.5DN percent=%.3f\n>5.0DN percent=%.3f\ntot_num=%.0f' % (
+				blink_noise_percent_thr_35_bin0, blink_noise_percent_thr_50_bin0, blink_noise_tot_num)
+				p.set_title(title_text, fontsize=12)
+				p.set_xlabel('Temporal Noise (DN)')
+				p.set_ylabel('# pixels')
+				p.text(0.8, .9, textstr, transform=p.transAxes, fontsize=9, verticalalignment='top', bbox=props)
+				plt.grid('on', 'major', 'y')
+				p.set_yscale('log')
+				plt.tight_layout()
 
-					plt.savefig	(file_name)
-					plt.close
+				plt.savefig	(file_name)
+				plt.close
 
-					# # bin1 noise distribution
-					# di = pd.DataFrame(blink_noise_bin1)
-					# di.columns =['noise']
-					# hist = di.hist(figsize=(12 ,8) ,bins=500)
-					# p = plt.gca()
-					# title_text = 'Blinking Pixel Noise Dist. bin1, median =  ' +str \
-					# 	(round(blink_noise_median_bin1 ,2) ) +', IQR =  ' +str(round(blink_noise_IQR_bin1 ,2))
-					# file_name = setting['Data_directory' ] +'images\\ ' +setting['Lot' ] +'_W ' +str \
-					# 	(setting['Wafer'] ) +'_P ' +str \
-					# 	(setting['Chip_position'] ) +'_blinking_pixel_dist_ ' +test_str +'_bin1.png'
-					# textstr ='>10DN percent=%.3f\n>20DN percent=%.3f\ntot_num=%.0f' % (
-					# blink_noise_percent_thr_10_bin1, blink_noise_percent_thr_20_bin1, blink_noise_tot_num)
-					# p.set_title(title_text, fontsize=12)
-					# p.set_xlabel('Temporal Noise (DN)')
-					# p.set_ylabel('# pixels')
-					# p.text(0.8, .9, textstr, transform=p.transAxes, fontsize=9, verticalalignment='top', bbox=props)
-					# plt.grid('on', 'major', 'y')
-					# p.set_yscale('log')
-					# plt.tight_layout()
-					#
-					# plt.savefig	(file_name)
-					# plt.close
-				blinking_parameters = [blink_noise_median_bin0 ,blink_noise_median_bin1 ,blink_noise_IQR_bin0
-									   ,blink_noise_IQR_bin1 ,blink_noise_percent_thr_35_bin0
-									   ,blink_noise_percent_thr_35_bin1,
-									   blink_noise_percent_thr_50_bin0 ,blink_noise_percent_thr_50_bin1
-									   ,blink_noise_tot_num]
-				# must save 9 parameters currently.  should fix
-				# blinking_parameters = [blink_noise_median_bin0 ,blink_noise_IQR_bin0,
-				# 						blink_noise_percent_thr_10_bin0,
-				# 					    blink_noise_percent_thr_20_bin0,blink_noise_tot_num]
-				parameter_out = True
+				# # bin1 noise distribution
+				# di = pd.DataFrame(blink_noise_bin1)
+				# di.columns =['noise']
+				# hist = di.hist(figsize=(12 ,8) ,bins=500)
+				# p = plt.gca()
+				# title_text = 'Blinking Pixel Noise Dist. bin1, median =  ' +str \
+				# 	(round(blink_noise_median_bin1 ,2) ) +', IQR =  ' +str(round(blink_noise_IQR_bin1 ,2))
+				# file_name = setting['Data_directory' ] +'images\\ ' +setting['Lot' ] +'_W ' +str \
+				# 	(setting['Wafer'] ) +'_P ' +str \
+				# 	(setting['Chip_position'] ) +'_blinking_pixel_dist_ ' +test_str +'_bin1.png'
+				# textstr ='>10DN percent=%.3f\n>20DN percent=%.3f\ntot_num=%.0f' % (
+				# blink_noise_percent_thr_10_bin1, blink_noise_percent_thr_20_bin1, blink_noise_tot_num)
+				# p.set_title(title_text, fontsize=12)
+				# p.set_xlabel('Temporal Noise (DN)')
+				# p.set_ylabel('# pixels')
+				# p.text(0.8, .9, textstr, transform=p.transAxes, fontsize=9, verticalalignment='top', bbox=props)
+				# plt.grid('on', 'major', 'y')
+				# p.set_yscale('log')
+				# plt.tight_layout()
+				#
+				# plt.savefig	(file_name)
+				# plt.close
+			blinking_parameters = [blink_noise_median_bin0 ,blink_noise_median_bin1 ,blink_noise_IQR_bin0
+								   ,blink_noise_IQR_bin1 ,blink_noise_percent_thr_35_bin0
+								   ,blink_noise_percent_thr_35_bin1,
+								   blink_noise_percent_thr_50_bin0 ,blink_noise_percent_thr_50_bin1
+								   ,blink_noise_tot_num]
+			# must save 9 parameters currently.  should fix
+			# blinking_parameters = [blink_noise_median_bin0 ,blink_noise_IQR_bin0,
+			# 						blink_noise_percent_thr_10_bin0,
+			# 					    blink_noise_percent_thr_20_bin0,blink_noise_tot_num]
+			parameter_out = True
 
-			else:  # the blinking pixel test is in the TRD file but is not done so just add a line
-				parameter_out = -1
+		else:  # the blinking pixel test is in the TRD file but is not done so just add a line
+			parameter_out = -1
 
-			# assess the test results based on TRD file limits etc.
-			t1 = time.time()
-			test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data ,t ,setting ,fmb
-																				   ,parameter_out ,hard_bin
-																				   ,failure_mode_bin ,continue_test
-																				   ,t1-t0)
-			if not continue_test:
-				if qsi.is_yes(t['retest_on_fail']):
-					retest_device = True
-				return test_data, continue_test, hard_bin, failure_mode_bin ,retest_device  # testng is over for this chip
+		# assess the test results based on TRD file limits etc.
+		t1 = time.time()
+		test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data ,t ,setting ,fmb
+																			   ,parameter_out ,hard_bin
+																			   ,failure_mode_bin ,continue_test
+																			   ,t1-t0)
+		if not continue_test:
+			if qsi.is_yes(t['retest_on_fail']):
+				retest_device = True
+			return test_data, continue_test, hard_bin, failure_mode_bin ,retest_device  # testng is over for this chip
 
-			# save dark blinking parameters
-			if dark_blinking_done:
-				for i in range(9):
-					fmb = str( i +491)
-					t0 = time.time()
-					t = trd[trd['failure_mode_bin' ]==fmb]
-					t = t.reset_index().to_dict()
-					if len(t['failure_mode_bin'] ) >0:  # is this test in the TRD file?
-						if qsi.is_yes(t['test_performed'][0]):  # the test is in the TRD file and is done
-							try:
-								parameter_out = blinking_parameters[i]
-							except:
-								parameter_out = -10.0
+		# save dark blinking parameters
+		if dark_blinking_done:
+			for i in range(9):
+				fmb = str( i +491)
+				t0 = time.time()
+				t = trd[trd['failure_mode_bin' ]==fmb]
+				t = t.reset_index().to_dict()
+				if len(t['failure_mode_bin'] ) >0:  # is this test in the TRD file?
+					if qsi.is_yes(t['test_performed'][0]):  # the test is in the TRD file and is done
+						try:
+							parameter_out = blinking_parameters[i]
+						except:
+							parameter_out = -10.0
 
-					else:  # the test is in the TRD file but is not done so just add a line
-						parameter_out = -1
+				else:  # the test is in the TRD file but is not done so just add a line
+					parameter_out = -1
 
-					# assess the test results based on TRD file limits etc.
-					t1 = time.time()
-					test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data ,t ,setting
-																						   ,fmb ,parameter_out
-																						   ,hard_bin
-																						   ,failure_mode_bin
-																						   ,continue_test ,t1-t0)
-					if not continue_test:
-						if qsi.is_yes(t['retest_on_fail']):
-							retest_device = True
-						return test_data, continue_test, hard_bin, failure_mode_bin ,retest_device  # testng is over for this chip
+				# assess the test results based on TRD file limits etc.
+				t1 = time.time()
+				test_data, continue_test, hard_bin, failure_mode_bin = qsi.assess_test(test_data ,t ,setting
+																					   ,fmb ,parameter_out
+																					   ,hard_bin
+																					   ,failure_mode_bin
+																					   ,continue_test ,t1-t0)
+				if not continue_test:
+					if qsi.is_yes(t['retest_on_fail']):
+						retest_device = True
+					return test_data, continue_test, hard_bin, failure_mode_bin ,retest_device  # testng is over for this chip
 
 
 		

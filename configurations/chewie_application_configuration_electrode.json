@@ -5,7 +5,7 @@
       "specific_hs_bus": 1,
       "specific_hs_port": 41344,
       "specific_ss_bus": 1,
-      "specific_ss_port": 24973
+      "specific_ss_port": 90317 
     },
     "Firmware": {
       "use_application_path": true,

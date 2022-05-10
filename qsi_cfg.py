@@ -7,7 +7,7 @@ HIDE_CONTROLS = False #show the extra controls used by test engineering
 MIN_YIELD = 0.7 #if the yield for this tester file falls below this value then flag the operator to stop testing and check interposer
 MIN_TOT_TESTED = 20	 #minimum number of chips tested to flag bad tester conditions if the yield is less than MIN_YIELD
 STANDARD_FONT = 12 #the size of the GUI may need to be adjusted on different monitors.	This variable allows this.
-IMAGE_SCALE = 2 #1 or 2 
+#IMAGE_SCALE = 2 #1 or 2
 
 # products, TRD, configuration files
 PROGRAM_FILE = 'qsi_ft_TESTS_NickelB_rev0.py'
@@ -18,18 +18,17 @@ MODULE_FILES = ['qsi_NickelB_init_tests_rev0.py','qsi_NickelB_vref_tests_rev0.py
 
 PROCESS_STEPS = ['Pre_Surface_Chem','Post_Surface_Chem','Other']
 
-# change base_coonfiguration_file also
-chip_type = 'NickelD'
-#chip_type = 'NickelG'
+# change base_configuration_file also
+#chip_type = 'NickelD'
+chip_type = 'NickelG'
 b_skip_photonics = True
+flask_server_ip = '10.140.10.23'
 if chip_type == 'NickelD':
-	PRODUCTS = [				'q9001_prober_2048x1024_cont_65M_8M_20220218_near_solo.json',
-				]
-
 	BASE_CONFIGURATION_FILES = ['q9001_prober_2048x1024_cont_65M_8M_20220218_near_solo.json',
 								]
 
 	TRD_FILES = [
+				'qsi_ft_TRD_NickelB_rev13_cp.csv',
 				'qsi_ft_TRD_NickelB_rev12_cp.csv',
 				'qsi_ft_TRD_NickelB_rev10_cp.csv',
 				'qsi_ft_TRD_NickelB_rev8_cp.csv',
@@ -41,23 +40,30 @@ if chip_type == 'NickelD':
 	TC_FILES = [
 						'qsi_ft_TC_NickelB_rev4_f.csv',
 				]
+	# apparently PRODUCTS not used now
+	PRODUCTS = ['q9001_prober_2048x1024_cont_65M_8M_20220218_near_solo.json',
+				]
 elif chip_type=='NickelG':
 	OFF_CHIP_CDS_CONFIG_PATH = 'NickelG_dCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_4sp_chip_phase_1200_CP_2021-12-10_b.json'
-	PRODUCTS = [		'NickelG_aCDS_2021_11_30.json',
-						'NickelG_aCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_1p3x_61p49fps_cds_2021-12-10_b.json',
-				]
 
 	BASE_CONFIGURATION_FILES = \
-		['NickelG_aCDS_2022-01-28_for_rel108.json',
+		[  'NickelG_aCDS_2022-01-28_for_rel108.json',
+		   'NickelG_aCDS_2022-03-06_prober_32x2048_for_rel108.json',
 		 'NickelG_aCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_1p3x_61p49fps_cds_2021-12-10_b.json',
 		]
 
 	TRD_FILES = [
-				'qsi_ft_TRD_NickelG_rev03_cp.csv',
+				'qsi_ft_TRD_NickelG_rev04_cp.csv',
+				'qsi_ft_TRD_NickelG_rev03_cp.csv',  # run until 20220405
 				]
 	TC_FILES = [
 						'qsi_ft_TC_NickelG_rev1.csv',
 				]
+	# apparently PRODUCTS not used now
+	PRODUCTS = [	'NickelG_aCDS_2021_11_30.json',
+						'NickelG_aCDS_C3_GTX_4p4_TX_3p2_VDRAIN4p5_VDDP3p6_oscillating_1p3x_61p49fps_cds_2021-12-10_b.json',
+						]
+
 # end of chip type dependent variables
 
 b_half_wafer = False

@@ -1,15 +1,15 @@
 ,condition,value
-0,Lot,S61331
-1,Wafer,19
+0,Lot,S67461
+1,Wafer,05
 2,Data_file,ENG_TEST1
-3,Chip_position,X-1Y-6
-4,Data_file_full_path,C:\Users\qsi\Desktop\Chip_data\2022_03\2022_03_02_open\ENG_TEST1.csv
-5,Data_summary_file_full_path,C:\Users\qsi\Desktop\Chip_data\2022_03\2022_03_02_open\ENG_TEST1_summary.csv
-6,Data_directory,C:\Users\qsi\Desktop\Chip_data\2022_03\2022_03_02_open\
-7,Date_stamp,2022-03-02 10:45:08
-8,Time_stamp,60395908.03104186
+3,Chip_position,X2Y3
+4,Data_file_full_path,C:\Users\qsi\Desktop\Chip_data\2022_05\2022_05_03_open\ENG_TEST1.csv
+5,Data_summary_file_full_path,C:\Users\qsi\Desktop\Chip_data\2022_05\2022_05_03_open\ENG_TEST1_summary.csv
+6,Data_directory,C:\Users\qsi\Desktop\Chip_data\2022_05\2022_05_03_open\
+7,Date_stamp,2022-05-03 15:04:08
+8,Time_stamp,65764648.57910943
 9,Number_assembly_fails,0
-10,Image_stamp,2022-03-02-10-45-08
+10,Image_stamp,2022-05-03-15-04-08
 11,Process_step,1
 12,Data_file_eng,ENG_TEST1
 13,Product_number,0

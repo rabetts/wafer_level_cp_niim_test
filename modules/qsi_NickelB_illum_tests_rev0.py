@@ -48,12 +48,12 @@ def calc_mclk_sweep_rr(imgs):
 	return df_rr.loc['rr'].median()
 
 def find_pix_rr(ds):
-	collect_plateau = 0
-	rej_floor = 125  # mclk index
+	collect_plateau = 5
+	rej_floor = 50  # mclk index
 	# breakpoint()
 	ds1 = ds.iloc[collect_plateau:rej_floor]
-	p90 = ds1[0:30].mean() * 0.9
-	p10 = ds1[0:30].mean() * 0.1
+	p90 = ds1[0:25].mean() * 0.9
+	p10 = ds1[0:25].mean() * 0.1
 	try:
 		# breakpoint()
 		t_90 = ds1[ds1 > p90].index[-1]
@@ -420,8 +420,12 @@ class qsi_illum_001():
 
 		
 
-		fmb = '629' #MCLK scan forGSL laser
-		input('set electrode chewie, then press any key to continue')
+		fmb = '629' #MCLK scan for GSL/picoQuant laser
+		qsi.dis()
+		time.sleep(1)
+		input('discoonnected from prober NiIM.  Set electrode chewie config, then press any key to continue')
+		qsi.con()
+		time.sleep(1)
 		t0 = time.time()
 		t = trd[trd['failure_mode_bin']==fmb]
 		t = t.reset_index().to_dict()
@@ -435,7 +439,7 @@ class qsi_illum_001():
 				mclk_points = int(test_conditions['MCLK points'])
 				mclk_step = int(test_conditions['MCLK step'])
 				mclk_offset = np.arange(int(test_conditions['MCLK start'] * mclk_step),
-										int(test_conditions['MCLK start']) + mclk_points * mclk_step, mclk_step)
+										int(test_conditions['MCLK start'] + mclk_points) * mclk_step, mclk_step)
 				# loop for 2 b1 dc levels
 				b1_common = 1.25
 				num_frs = 625
@@ -461,7 +465,8 @@ class qsi_illum_001():
 						#set_b1_dc_offset((b1)) # tmp fix, use STS smu ch to set b1 dc bias
 						#for n_blk_rows in [0, 2504]: # prev 461 also
 						#for n_blk_rows in [4, 316]:  # prev 461 also
-						for n_blk_rows in [4,316]:  # prev 461 also
+						for n_blk_rows in [10,6118]:  # prev 461 also
+						#for n_blk_rows in [10, 12240]:  #
 							# qsi.set_config("C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\configurations\\q9001_prober_outer_102x1024_with_2btm_rows_cont_65M_8M_S50194_picoquant_off.json")  # write the config w/ pq off
 							qsi.set_blk_row(n_blk_rows)
 							#set b0 dc_level
@@ -476,7 +481,7 @@ class qsi_illum_001():
 							b_check_chewie= False
 							if b_check_chewie:
 								qsi.dis()
-								input('disconnect from NIM, press any key to reconnect and continue')
+								input('disconnect from NIM, check dark frame, press any key to reconnect and continue')
 								qsi.con()
 								time.sleep(1)
 							dark_frame = qsi.capture(num_frs, 'cds')
@@ -507,8 +512,15 @@ class qsi_illum_001():
 							# time.sleep(1)
 							# qsi.gsl_info()
 							# qsi.set_config("C:\\Users\\qsi\\Desktop\\Production_FT_mod_cp\\configurations\\q9001_prober_outer_102x1024_with_2btm_rows_cont_65M_8M_S50194_picoquant_on.json")  # write the config w/ pq on
-							qsi.picoquant_enable(enable = True)
+							qsi.picoquant_enable(enable=True)
 							wait_for_picoquant_sync()
+							# temp check
+							# b_check_chewie= True
+							if b_check_chewie:
+								qsi.dis()
+								input('disconnect from NIM, check laser on, press any key to reconnect and continue')
+								qsi.con()
+								time.sleep(1)
 							#time.sleep(4)
 							# sweep for vt, 1st pass only
 							if (True & (n_blk_rows == 4) & (idx==0)):
@@ -553,22 +565,27 @@ class qsi_illum_001():
 								b1_tune = b1_common
 							# sweep mclks, saving frames
 							frm_sequence_l = np.zeros([mclk_points, *dark_frame.shape])
+							num_mclk_frames = 16
 							print('running MCLK scan...')
 							for i in range(mclk_points):
 								qsi.set_mclk_offset(mclk_offset[i])
 								time.sleep(0.15)
+								print(f'mclk offset {mclk_offset[i]}')
 
 								# assume 4d , avg 1st 2 dims to get single frame
 								# do variable fr averaging depending on mclk window, high for falling  edge only
-								num_mclk_frames = 250 if ((i>75) and (i<125)) else 2
+								#num_mclk_frames = 250 if ((i>75) and (i<125)) else 2
 								#num_mclk_frames = 169 if ((i>25) and (i<75)) else 2
-								#num_mclk_frames = 2
-								b_check_chewie = True
+								b_check_chewie = False
 								if ((i==0) & (b_check_chewie)):
 									qsi.dis()
 									input('disconnect from NIM, press any key to reconnect and continue')
 									qsi.con()
 									time.sleep(1)
+								if ((i>=75) & (i<=105)):
+									num_mclk_frames = 625
+								else:
+									num_mclk_frames = 16
 								capture_frame = qsi.capture(num_mclk_frames,'cds')
 								if ((isinstance(capture_frame, int)) or (dark_frame is None)):
 									print('Bad capture, Move to next die')
@@ -597,7 +614,7 @@ class qsi_illum_001():
 								#dud0 = dud0[dud0 !=0.0]
 								#frm_sequence_l[i,0] = np.median(dud0)
 								frm_sequence_l[i] = dud
-								if ((i==80) or (i==115)):  # save off a full frames captured
+								if ((i==76) or (i==104)):  # save off a full frames captured
 									np.save(
 										setting['Data_directory'] + 'images\\' + setting['Lot'] + '_W' + str(
 											setting['Wafer']) + '_P' + str(
@@ -612,9 +629,15 @@ class qsi_illum_001():
 								setting['Wafer']) + '_P' + str(
 								setting['Chip_position']) + '_' + str(n_blk_rows) +f'_mclk_sweep_b0_{b0}V_b1_{b1}V_dc50_frs{num_mclk_frames}_sr_ns_' + test_str, frm_sequence_l)
 							# display rej ratio for this mclk sequence
-							y_roi = (99,101)
-							y_roi = (17,18)
-							x_roi = (590,640)
+							#y_roi = (99,101)
+							b_check_chewie = False
+							if (b_check_chewie):
+								qsi.dis()
+								input('disconnect from NIM, press any key to reconnect and continue')
+								qsi.con()
+								time.sleep(1)
+							y_roi = (48,62)
+							x_roi = (771,890)
 							rr_roi = calc_mclk_sweep_rr(frm_sequence_l[:, 0, y_roi[0]:y_roi[1], x_roi[0]:x_roi[1]])
 							print(f'rej ratio for blanking rows {n_blk_rows} {y_roi[0]}:{y_roi[1]}, {x_roi[0]}:{x_roi[1]} = {rr_roi}')
 					# todo: tmp - check dark frame after mclk sweep, compare to pre
@@ -1121,18 +1144,18 @@ def wait_for_picoquant_sync():
 
 #deprecated
 def _flask_get_led_v_mod_real():
-	r = requests.get('http://10.52.11.145:5000/get_v_mod_led_real')
+	r = requests.get(f'http://{cfg.flask_server_ip}:5000/get_v_mod_led_real')
 	vmod = float(eval(r.text)['v'])
 	return (vmod)
 
 # deprcated
 def _flask_set_led_v_mod_request(v_mod_request):
-	r = requests.get(f'http://10.52.11.145:5000/set_v_mod_led_request/{v_mod_request}')
+	r = requests.get(f'http://{cfg.flask_server_ip}:5000/set_v_mod_led_request/{v_mod_request}')
 	return (r.text)
 
 
 def _flask_get_i_led():
-	r = requests.get('http://10.52.11.145:5000/get_i_led')
+	r = requests.get(f'http://{cfg.flask_server_ip}:5000/get_i_led')
 	i = float(eval(r.text)['i'])
 	return (i)
 
@@ -1154,7 +1177,7 @@ def set_b1_dc_offset(v_b1_dc):
 			break
 
 def _flask_get_sts_smu_real():
-	r = requests.get('http://10.52.11.145:5000/get_sts_smu_real')
+	r = requests.get(f'http://{cfg.flask_server_ip}:5000/get_sts_smu_real')
 	d_smus = eval(r.text)
 	for smu, v in d_smus.items():
 		print(smu, v)
@@ -1165,7 +1188,7 @@ def _flask_get_b1_dc_offset():
 
 def _flask_set_b1_dc_offset(v_request):
 	r = requests.get(
-		"http://10.52.11.145:5000/set_sts_smu_req/{'4162_ch6_sma6': " + str(v_request) + "}")
+		f"http://{cfg.flask_server_ip}:5000/set_sts_smu_req/"+"{'4162_ch6_sma6': " + str(v_request) + "\}")
 	return (r.text)
 
 def _flask_get_b0_static_real():
@@ -1173,7 +1196,7 @@ def _flask_get_b0_static_real():
 
 def _flask_set_b0_static_request(v_request):
 	r = requests.get(
-		"http://10.52.11.145:5000/set_sts_smu_req/{'4139_ch2_b0_vhi_l': " + str(v_request) + "}")
+		f"http://{cfg.flask_server_ip}:5000/set_sts_smu_req/"+"{'4139_ch2_b0_vhi_l': " + str(v_request) + "}")
 	return (r.text)
 
 def _flask_get_b1_static_real():
@@ -1181,5 +1204,5 @@ def _flask_get_b1_static_real():
 
 def _flask_set_b1_static_request(v_request):
 	r = requests.get(
-		"http://10.52.11.145:5000/set_sts_smu_req/{'4139_ch0_b12_vhi_l': " + str(v_request) + "}")
+		f"http://{cfg.flask_server_ip}:5000/set_sts_smu_req/"+"{'4139_ch0_b12_vhi_l': " + str(v_request) + "}")
 	return (r.text)
